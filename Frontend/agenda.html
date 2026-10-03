@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda | Destino de Ensueño</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .agenda-tabs { display: flex; gap: 10px; margin-bottom: 25px; }
+        .agenda-tabs button { padding: 10px 20px; border: 2px solid var(--primary-color); border-radius: 4px; background: white; color: var(--primary-color); cursor: pointer; font-weight: bold; }
+        .agenda-tabs button.active { background: var(--primary-color); color: white; }
+        .discount-card { border-left: 5px solid var(--secondary-color); }
+        .discount-badge { background: var(--secondary-color); color: white; display: inline-block; padding: 4px 10px; border-radius: 20px; font-weight: bold; margin-bottom: 8px; }
+        .event-date { font-weight: bold; color: var(--primary-color); }
+    </style>
+</head>
+<body>
+    <header class="navbar">
+        <div class="container">
+            <h1 class="logo"><a href="index.html">🌟 Destino de Ensueño</a></h1>
+            <nav><ul id="nav-links"></ul></nav>
+        </div>
+    </header>
+
+    <main class="container section">
+        <h2 class="section-title">📅 Agenda</h2>
+
+        <div class="agenda-tabs">
+            <button class="active" onclick="showTab('events', this)">🎉 Eventos</button>
+            <button onclick="showTab('discounts', this)">💸 Descuentos</button>
+        </div>
+
+        <!-- Panel de Eventos -->
+        <div id="tab-events">
+            <p style="color:#666; margin-bottom:20px;">Eventos próximos publicados por establecimientos y organizadores de la región.</p>
+            <div class="card-grid" id="events-list">
+                <p>Cargando eventos...</p>
+            </div>
+        </div>
+
+        <!-- Panel de Descuentos -->
+        <div id="tab-discounts" style="display:none;">
+            <p style="color:#666; margin-bottom:20px;">Descuentos vigentes en negocios participantes. Válidos hasta las fechas indicadas.</p>
+            <div class="card-grid" id="discounts-list">
+                <p>Cargando descuentos...</p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Destino de Ensueños</p>
+    </footer>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        function showTab(tab, btn) {
+            document.getElementById('tab-events').style.display = tab === 'events' ? 'block' : 'none';
+            document.getElementById('tab-discounts').style.display = tab === 'discounts' ? 'block' : 'none';
+            document.querySelectorAll('.agenda-tabs button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        async function loadEvents() {
+            const container = document.getElementById('events-list');
+            try {
+                const events = await ApiService.request('/Event/upcoming');
+                if (events.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; padding:40px; color:#777;">No hay eventos próximos publicados.</p>';
+                    return;
+                }
+                container.innerHTML = events.map(e => `
+                    <div class="card" onclick="window.location.href='${e.businessId ? `negocio.html?id=${e.businessId}` : '#'}'" style="cursor:pointer;">
+                        <h3>${e.name}</h3>
+                        ${e.businessName ? `<span class="badge">${e.businessName}</span>` : '<span class="badge" style="background:#95a5a6;">Independiente</span>'}
+                        <p class="event-date" style="margin-top:10px;">
+                            📅 ${new Date(e.date).toLocaleDateString('es', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}
+                        </p>
+                        <p>⏰ ${e.time ? e.time.substring(0,5) + 'h' : 'Ver detalle'}</p>
+                        <p style="margin-top:8px;">${e.description}</p>
+                        <p style="margin-top:10px; font-weight:bold;">${e.isFree ? '🎟 Entrada gratuita' : `💰 Entrada: $${e.price}`}</p>
+                        ${e.location ? `<p>📍 ${e.location}</p>` : ''}
+                    </div>
+                `).join('');
+            } catch (err) {
+                container.innerHTML = `<p class="error-msg">No se pudieron cargar los eventos: ${err.message}</p>`;
+            }
+        }
+
+        async function loadDiscounts() {
+            const container = document.getElementById('discounts-list');
+            try {
+                const discounts = await ApiService.request('/Discount/active');
+                if (discounts.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; padding:40px; color:#777;">No hay descuentos activos en este momento.</p>';
+                    return;
+                }
+                container.innerHTML = discounts.map(d => `
+                    <div class="card discount-card" onclick="window.location.href='negocio.html?id=${d.businessId}'" style="cursor:pointer;">
+                        <span class="discount-badge">${d.percentage}% OFF</span>
+                        <h3>${d.name}</h3>
+                        <p class="badge">${d.businessName}</p>
+                        <p style="margin-top:8px;">${d.description}</p>
+                        <p style="margin-top:10px; color:var(--secondary-color); font-weight:bold;">
+                            Válido hasta: ${new Date(d.endDate).toLocaleDateString('es', {day:'numeric', month:'long', year:'numeric'})}
+                        </p>
+                    </div>
+                `).join('');
+            } catch (err) {
+                container.innerHTML = `<p class="error-msg">No se pudieron cargar los descuentos: ${err.message}</p>`;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadEvents();
+            loadDiscounts();
+        });
+    </script>
+</body>
+</html>

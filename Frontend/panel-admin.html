@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrativo | Destino de Ensueño</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .admin-layout { display: grid; grid-template-columns: 220px 1fr; gap: 30px; margin-top: 20px; }
+        .admin-sidebar { background: #2c3e50; color: white; border-radius: 8px; padding: 20px; }
+        .admin-sidebar h3 { margin-bottom: 15px; border-bottom: 1px solid #455; padding-bottom: 10px; }
+        .admin-sidebar a { display: block; color: #bdc3c7; padding: 10px; border-radius: 4px; margin-bottom: 5px; cursor: pointer; }
+        .admin-sidebar a:hover, .admin-sidebar a.active { background: #007bff; color: white; }
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .stat-card { background: #2c3e50; color: white; padding: 20px; border-radius: 8px; text-align: center; }
+        .stat-card h3 { font-size: 2.2rem; margin-bottom: 5px; }
+        .admin-panel { display: none; }
+        .admin-panel.active { display: block; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
+        th { background: #f1f1f1; font-weight: bold; }
+        tr:hover { background: #fafafa; }
+        .badge-active { background: #27ae60; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; }
+        .badge-inactive { background: #e74c3c; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; }
+        @media (max-width: 768px) { .admin-layout { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="navbar">
+        <div class="container">
+            <h1 class="logo"><a href="index.html">🌟 Destino de Ensueño</a></h1>
+            <nav><ul id="nav-links"></ul></nav>
+        </div>
+    </header>
+
+    <main class="container section">
+        <h2>⚙ Panel Administrativo</h2>
+
+        <div class="stat-grid" style="margin-top:20px;">
+            <div class="stat-card"><h3 id="stat-biz">-</h3><p>Negocios</p></div>
+            <div class="stat-card"><h3 id="stat-evt">-</h3><p>Eventos Futuros</p></div>
+            <div class="stat-card"><h3 id="stat-dsc">-</h3><p>Descuentos Activos</p></div>
+        </div>
+
+        <div class="admin-layout">
+            <aside class="admin-sidebar">
+                <h3>Gestión</h3>
+                <a class="active" onclick="showPanel('businesses', this)">🏢 Negocios</a>
+                <a onclick="showPanel('events', this)">🎉 Eventos</a>
+                <a onclick="showPanel('discounts', this)">💸 Descuentos</a>
+            </aside>
+
+            <div>
+                <div id="panel-businesses" class="admin-panel active">
+                    <h3>Crear Nuevo Negocio</h3>
+                    <form id="form-business" style="margin-top:15px;">
+                        <div class="form-grid">
+                            <div class="form-group"><label>Nombre *</label><input type="text" id="biz-name" required></div>
+                            <div class="form-group"><label>Categoría *</label>
+                                <select id="biz-category" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                                    <option value="">Seleccionar...</option>
+                                </select>
+                            </div>
+                            <div class="form-group"><label>Teléfono</label><input type="text" id="biz-phone"></div>
+                            <div class="form-group"><label>Correo</label><input type="email" id="biz-email"></div>
+                            <div class="form-group"><label>Dirección *</label><input type="text" id="biz-address" required></div>
+                            <div class="form-group"><label>Latitud</label><input type="number" step="any" id="biz-lat" placeholder="ej: 4.6097"></div>
+                            <div class="form-group"><label>Longitud</label><input type="number" step="any" id="biz-lng" placeholder="ej: -74.0817"></div>
+                            <div class="form-group" style="display:flex; align-items:center; gap:10px; padding-top:25px;">
+                                <input type="checkbox" id="biz-published" style="width:auto;">
+                                <label for="biz-published">Publicar inmediatamente</label>
+                            </div>
+                        </div>
+                        <div class="form-group"><label>Descripción *</label>
+                            <textarea id="biz-desc" rows="3" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;" required></textarea>
+                        </div>
+                        <p id="biz-msg" style="margin:10px 0;"></p>
+                        <button type="submit" class="btn btn-primary">Crear Negocio</button>
+                    </form>
+                    <hr style="margin:30px 0;">
+                    <h3>Negocios registrados</h3>
+                    <div id="biz-table" style="margin-top:15px; overflow-x:auto;"><p>Cargando...</p></div>
+                </div>
+
+                <div id="panel-events" class="admin-panel">
+                    <h3>Crear Nuevo Evento</h3>
+                    <form id="form-event" style="margin-top:15px;">
+                        <div class="form-grid">
+                            <div class="form-group"><label>Nombre *</label><input type="text" id="evt-name" required></div>
+                            <div class="form-group"><label>Negocio asociado (opcional)</label>
+                                <select id="evt-business" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                                    <option value="">Independiente</option>
+                                </select>
+                            </div>
+                            <div class="form-group"><label>Fecha *</label><input type="date" id="evt-date" required></div>
+                            <div class="form-group"><label>Hora</label><input type="time" id="evt-time"></div>
+                            <div class="form-group"><label>Lugar</label><input type="text" id="evt-location"></div>
+                            <div class="form-group"><label>Organizador</label><input type="text" id="evt-organizer"></div>
+                            <div class="form-group">
+                                <label><input type="checkbox" id="evt-free" onchange="togglePrice()"> Entrada gratuita</label>
+                            </div>
+                            <div class="form-group" id="price-group"><label>Precio</label><input type="number" step="0.01" id="evt-price" value="0"></div>
+                        </div>
+                        <div class="form-group"><label>Descripción *</label>
+                            <textarea id="evt-desc" rows="3" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;" required></textarea>
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+                            <input type="checkbox" id="evt-published" style="width:auto;">
+                            <label for="evt-published">Publicar inmediatamente</label>
+                        </div>
+                        <p id="evt-msg" style="margin:10px 0;"></p>
+                        <button type="submit" class="btn btn-primary">Crear Evento</button>
+                    </form>
+                    <hr style="margin:30px 0;">
+                    <h3>Eventos registrados</h3>
+                    <div id="evt-table" style="margin-top:15px; overflow-x:auto;"><p>Cargando...</p></div>
+                </div>
+
+                <div id="panel-discounts" class="admin-panel">
+                    <h3>Crear Nuevo Descuento</h3>
+                    <form id="form-discount" style="margin-top:15px;">
+                        <div class="form-grid">
+                            <div class="form-group"><label>Nombre *</label><input type="text" id="dsc-name" required></div>
+                            <div class="form-group"><label>Negocio asociado *</label>
+                                <select id="dsc-business" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                                    <option value="">Seleccionar...</option>
+                                </select>
+                            </div>
+                            <div class="form-group"><label>Porcentaje (%) *</label><input type="number" id="dsc-pct" min="1" max="100" required></div>
+                            <div class="form-group"><label>Condiciones</label><input type="text" id="dsc-cond"></div>
+                            <div class="form-group"><label>Fecha de inicio *</label><input type="date" id="dsc-start" required></div>
+                            <div class="form-group"><label>Fecha de fin *</label><input type="date" id="dsc-end" required></div>
+                        </div>
+                        <div class="form-group"><label>Descripción *</label>
+                            <textarea id="dsc-desc" rows="3" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;" required></textarea>
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+                            <input type="checkbox" id="dsc-published" style="width:auto;">
+                            <label for="dsc-published">Publicar inmediatamente</label>
+                        </div>
+                        <p id="dsc-msg" style="margin:10px 0;"></p>
+                        <button type="submit" class="btn btn-primary">Crear Descuento</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Destino de Ensueños</p>
+    </footer>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (localStorage.getItem('role') !== 'Admin') {
+                alert('Acceso denegado. Esta sección es exclusiva para administradores.');
+                window.location.href = 'index.html';
+                return;
+            }
+            await loadStats();
+            await loadCategories();
+            await loadBusinessesForAdmin();
+            await loadEventsForAdmin();
+        });
+
+        function showPanel(name, link) {
+            document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.admin-sidebar a').forEach(a => a.classList.remove('active'));
+            document.getElementById(`panel-${name}`).classList.add('active');
+            link.classList.add('active');
+        }
+
+        async function loadStats() {
+            try {
+                const [biz, evt, dsc] = await Promise.all([
+                    ApiService.request('/Business'),
+                    ApiService.request('/Event/upcoming'),
+                    ApiService.request('/Discount/active')
+                ]);
+                document.getElementById('stat-biz').textContent = biz.length;
+                document.getElementById('stat-evt').textContent = evt.length;
+                document.getElementById('stat-dsc').textContent = dsc.length;
+            } catch (err) { console.error('Error cargando stats:', err); }
+        }
+
+        async function loadCategories() {
+            try {
+                const cats = await ApiService.request('/Category');
+                ['biz-category'].forEach(id => {
+                    const sel = document.getElementById(id);
+                    cats.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = c.name;
+                        sel.appendChild(opt);
+                    });
+                });
+            } catch (err) { console.error('Error cargando categorías:', err); }
+        }
+
+        async function loadBusinessesForAdmin() {
+            try {
+                const biz = await ApiService.request('/Business');
+                ['evt-business', 'dsc-business'].forEach(id => {
+                    const sel = document.getElementById(id);
+                    biz.forEach(b => {
+                        const opt = document.createElement('option');
+                        opt.value = b.id;
+                        opt.textContent = b.name;
+                        sel.appendChild(opt);
+                    });
+                });
+                const table = document.getElementById('biz-table');
+                table.innerHTML = biz.length ? `
+                    <table>
+                        <thead><tr><th>ID</th><th>Nombre</th><th>Categoría</th><th>Publicado</th><th>Rating</th></tr></thead>
+                        <tbody>${biz.map(b => `
+                            <tr>
+                                <td>${b.id}</td>
+                                <td><a href="negocio.html?id=${b.id}">${b.name}</a></td>
+                                <td>${b.categoryName}</td>
+                                <td><span class="${b.isPublished ? 'badge-active' : 'badge-inactive'}">${b.isPublished ? 'Publicado' : 'Borrador'}</span></td>
+                                <td>${renderStars(b.averageRating)} ${b.averageRating.toFixed(1)}</td>
+                            </tr>
+                        `).join('')}</tbody>
+                    </table>
+                ` : '<p>No hay negocios registrados.</p>';
+            } catch (err) { console.error(err); }
+        }
+
+        async function loadEventsForAdmin() {
+            try {
+                const evts = await ApiService.request('/Event/upcoming');
+                const table = document.getElementById('evt-table');
+                table.innerHTML = evts.length ? `
+                    <table>
+                        <thead><tr><th>Nombre</th><th>Fecha</th><th>Negocio</th></tr></thead>
+                        <tbody>${evts.map(e => `
+                            <tr>
+                                <td>${e.name}</td>
+                                <td>${new Date(e.date).toLocaleDateString('es')}</td>
+                                <td>${e.businessName || 'Independiente'}</td>
+                            </tr>
+                        `).join('')}</tbody>
+                    </table>
+                ` : '<p>No hay eventos próximos.</p>';
+            } catch (err) { console.error(err); }
+        }
+
+        function togglePrice() {
+            const isFree = document.getElementById('evt-free').checked;
+            document.getElementById('price-group').style.display = isFree ? 'none' : 'block';
+        }
+
+        function setMsg(id, text, isError) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.style.color = isError ? 'red' : 'green';
+        }
+
+        document.getElementById('form-business').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const dto = {
+                name: document.getElementById('biz-name').value,
+                description: document.getElementById('biz-desc').value,
+                address: document.getElementById('biz-address').value,
+                phone: document.getElementById('biz-phone').value,
+                email: document.getElementById('biz-email').value,
+                categoryId: parseInt(document.getElementById('biz-category').value),
+                latitude: parseFloat(document.getElementById('biz-lat').value) || 0,
+                longitude: parseFloat(document.getElementById('biz-lng').value) || 0,
+                isPublished: document.getElementById('biz-published').checked
+            };
+            try {
+                setMsg('biz-msg', 'Guardando...', false);
+                await ApiService.request('/Business', 'POST', dto);
+                setMsg('biz-msg', '✓ Negocio creado exitosamente.', false);
+                document.getElementById('form-business').reset();
+                await loadStats();
+                await loadBusinessesForAdmin();
+            } catch (err) {
+                setMsg('biz-msg', `Error: ${err.message}`, true);
+            }
+        });
+
+        document.getElementById('form-event').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const isFree = document.getElementById('evt-free').checked;
+            const dto = {
+                name: document.getElementById('evt-name').value,
+                description: document.getElementById('evt-desc').value,
+                date: document.getElementById('evt-date').value,
+                time: document.getElementById('evt-time').value || '00:00:00',
+                location: document.getElementById('evt-location').value,
+                organizer: document.getElementById('evt-organizer').value,
+                isFree,
+                price: isFree ? 0 : parseFloat(document.getElementById('evt-price').value) || 0,
+                businessId: document.getElementById('evt-business').value ? parseInt(document.getElementById('evt-business').value) : null,
+                isPublished: document.getElementById('evt-published').checked,
+                imageUrl: ''
+            };
+            try {
+                setMsg('evt-msg', 'Guardando...', false);
+                await ApiService.request('/Event', 'POST', dto);
+                setMsg('evt-msg', '✓ Evento creado exitosamente.', false);
+                document.getElementById('form-event').reset();
+                await loadStats();
+                await loadEventsForAdmin();
+            } catch (err) {
+                setMsg('evt-msg', `Error: ${err.message}`, true);
+            }
+        });
+
+        document.getElementById('form-discount').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const dto = {
+                name: document.getElementById('dsc-name').value,
+                description: document.getElementById('dsc-desc').value,
+                percentage: parseInt(document.getElementById('dsc-pct').value),
+                conditions: document.getElementById('dsc-cond').value,
+                startDate: document.getElementById('dsc-start').value,
+                endDate: document.getElementById('dsc-end').value,
+                businessId: parseInt(document.getElementById('dsc-business').value),
+                isPublished: document.getElementById('dsc-published').checked,
+                imageUrl: ''
+            };
+            try {
+                setMsg('dsc-msg', 'Guardando...', false);
+                await ApiService.request('/Discount', 'POST', dto);
+                setMsg('dsc-msg', '✓ Descuento creado exitosamente.', false);
+                document.getElementById('form-discount').reset();
+                await loadStats();
+            } catch (err) {
+                setMsg('dsc-msg', `Error: ${err.message}`, true);
+            }
+        });
+    </script>
+</body>
+</html>

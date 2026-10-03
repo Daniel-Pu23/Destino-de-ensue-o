@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle | Destino de Ensueño</title>
+    <meta name="referrer" content="origin">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #detail-map { height: 300px; border-radius: 8px; margin: 20px 0; z-index: 1; }
+        .review-card { background: #f9f9f9; border-left: 4px solid var(--primary-color); padding: 15px; margin-bottom: 15px; border-radius: 4px; }
+        .review-meta { color: #777; font-size: 0.85rem; margin-top: 5px; }
+        .rating-display { font-size: 1.5rem; color: #f39c12; }
+        .detail-info p { margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <header class="navbar">
+        <div class="container">
+            <h1 class="logo"><a href="index.html">🌟 Destino de Ensueño</a></h1>
+            <nav><ul id="nav-links"></ul></nav>
+        </div>
+    </header>
+
+    <main class="container section">
+        <p><a href="negocios.html" style="color: var(--primary-color);">← Volver al directorio</a></p>
+        <div id="detail-container">
+            <p>Cargando información del negocio...</p>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Destino de Ensueños</p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const businessId = urlParams.get('id');
+        let detailMap = null;
+
+        async function loadDetail() {
+            const container = document.getElementById('detail-container');
+            if (!businessId) {
+                container.innerHTML = '<p class="error-msg">No se proporcionó un ID de negocio.</p>';
+                return;
+            }
+
+            try {
+                const b = await ApiService.request(`/Business/${businessId}`);
+                const token = localStorage.getItem('token');
+                document.title = `${b.name} | Destino de Ensueño`;
+
+                let reviewFormHtml = '';
+                if (token) {
+                    reviewFormHtml = `
+                        <div class="card" style="max-width: 500px; margin-top: 20px;">
+                            <h3>Deja tu valoración</h3>
+                            <form id="reviewForm" style="margin-top:15px;">
+                                <div class="form-group">
+                                    <label>Puntuación (1–5 estrellas)</label>
+                                    <div id="star-picker" style="font-size: 2rem; cursor: pointer; color: #ccc;">
+                                        <span onclick="setRating(1)">★</span>
+                                        <span onclick="setRating(2)">★</span>
+                                        <span onclick="setRating(3)">★</span>
+                                        <span onclick="setRating(4)">★</span>
+                                        <span onclick="setRating(5)">★</span>
+                                    </div>
+                                    <input type="hidden" id="revRating" value="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>Comentario (opcional)</label>
+                                    <textarea id="revComment" rows="3" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;"></textarea>
+                                </div>
+                                <p id="review-msg" class="error-msg"></p>
+                                <button type="submit" class="btn btn-primary">Enviar Reseña</button>
+                            </form>
+                        </div>
+                    `;
+                } else {
+                    reviewFormHtml = `
+                        <div class="card" style="max-width:500px; margin-top:20px; text-align:center;">
+                            <p><a href="login.html" style="color:var(--primary-color); font-weight:bold;">Inicia sesión</a> para dejar una reseña y valoración.</p>
+                        </div>
+                    `;
+                }
+
+                container.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                        <div>
+                            <h2>${b.name}</h2>
+                            <span class="badge">${b.categoryName}</span>
+                        </div>
+                        <div class="rating-display" style="margin-left: auto;">
+                            ${renderStars(b.averageRating)}
+                            <span style="font-size:1rem; color:#333;">${b.averageRating.toFixed(1)} (${b.reviewCount} reseña${b.reviewCount !== 1 ? 's' : ''})</span>
+                        </div>
+                    </div>
+
+                    <hr style="margin: 20px 0;">
+
+                    <div class="detail-info">
+                        <p><strong>📝 Descripción:</strong> ${b.description}</p>
+                        <p><strong>📍 Dirección:</strong> ${b.address}</p>
+                        <p><strong>📞 Teléfono:</strong> ${b.phone || 'No disponible'}</p>
+                    </div>
+
+                    <div id="detail-map"></div>
+
+                    ${reviewFormHtml}
+
+                    <hr style="margin: 30px 0;">
+                    <h3>Reseñas de usuarios</h3>
+                    <div id="reviews-container">
+                        <p>Cargando reseñas...</p>
+                    </div>
+                `;
+
+                if (b.latitude && b.longitude) {
+                    setTimeout(() => {
+                        detailMap = L.map('detail-map').setView([b.latitude, b.longitude], 15);
+                        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            maxZoom: 19,
+                            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        }).addTo(detailMap);
+                        L.marker([b.latitude, b.longitude])
+                            .addTo(detailMap)
+                            .bindPopup(`<b>${b.name}</b><br>${b.address}`)
+                            .openPopup();
+                    }, 100);
+                } else {
+                    document.getElementById('detail-map').style.display = 'none';
+                }
+
+                if (token) {
+                    document.getElementById('reviewForm').addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const rating = parseInt(document.getElementById('revRating').value);
+                        const comment = document.getElementById('revComment').value.trim();
+                        const msgEl = document.getElementById('review-msg');
+
+                        if (rating < 1 || rating > 5) {
+                            msgEl.textContent = 'Por favor selecciona una puntuación de 1 a 5 estrellas.';
+                            return;
+                        }
+
+                        try {
+                            msgEl.textContent = 'Guardando...';
+                            msgEl.style.color = '#666';
+                            await ApiService.request('/Review', 'POST', {
+                                businessId: parseInt(businessId),
+                                rating,
+                                comment: comment || null
+                            });
+                            msgEl.textContent = '✓ Reseña guardada exitosamente.';
+                            msgEl.style.color = 'green';
+                            setTimeout(() => loadDetail(), 1000);
+                        } catch (err) {
+                            msgEl.textContent = `Error: ${err.message}`;
+                            msgEl.style.color = 'red';
+                        }
+                    });
+                }
+
+                await loadReviews();
+
+            } catch (err) {
+                container.innerHTML = `<p class="error-msg">No se pudo cargar el negocio. ${err.message}</p>`;
+            }
+        }
+
+        function setRating(value) {
+            document.getElementById('revRating').value = value;
+            const stars = document.querySelectorAll('#star-picker span');
+            stars.forEach((s, i) => {
+                s.style.color = i < value ? '#f39c12' : '#ccc';
+            });
+        }
+
+        async function loadReviews() {
+            const container = document.getElementById('reviews-container');
+            if (!container) return;
+            try {
+                const reviews = await ApiService.request(`/Review/${businessId}`);
+                if (reviews.length === 0) {
+                    container.innerHTML = '<p style="color:#777;">Aún no hay reseñas. ¡Sé el primero en opinar!</p>';
+                    return;
+                }
+                container.innerHTML = reviews.map(r => `
+                    <div class="review-card">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong>${r.userName}</strong>
+                            <span style="color:#f39c12;">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
+                        </div>
+                        ${r.comment ? `<p style="margin-top:8px;">${r.comment}</p>` : ''}
+                        <p class="review-meta">${new Date(r.date).toLocaleDateString('es', {day:'numeric', month:'long', year:'numeric'})}</p>
+                    </div>
+                `).join('');
+            } catch (err) {
+                container.innerHTML = '<p style="color:#777;">No se pudieron cargar las reseñas.</p>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadDetail);
+    </script>
+</body>
+</html>

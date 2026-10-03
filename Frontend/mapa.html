@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Interactivo | Destino de Ensueño</title>
+    <meta name="referrer" content="origin">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 600px; width: 100%; border-radius: 8px; margin-top: 20px; z-index: 1; }
+        .map-legend { background: white; padding: 15px; border-radius: 8px; margin-top: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <header class="navbar">
+        <div class="container">
+            <h1 class="logo"><a href="index.html">🌟 Destino de Ensueño</a></h1>
+            <nav><ul id="nav-links"></ul></nav>
+        </div>
+    </header>
+
+    <main class="container section">
+        <h2 class="section-title">🗺 Mapa Interactivo</h2>
+        <p style="text-align:center; color:#666; margin-bottom:10px;">
+            Haz clic en cualquier marcador para ver información del lugar.
+        </p>
+        <div id="map"></div>
+        <div class="map-legend">
+            <strong>Negocios en el mapa:</strong>
+            <span id="map-count" style="color: var(--primary-color); margin-left: 10px;">Cargando...</span>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Destino de Ensueños</p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const map = L.map('map').setView([4.6097, -74.0817], 14);
+
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            try {
+                const businesses = await ApiService.request('/Business');
+                document.getElementById('map-count').textContent = `${businesses.length} lugar(es) encontrado(s)`;
+
+                if (businesses.length === 0) {
+                    document.getElementById('map-count').textContent = 'No hay negocios publicados.';
+                    return;
+                }
+
+                const bounds = [];
+
+                businesses.forEach(b => {
+                    if (!b.latitude || !b.longitude) return;
+
+                    const marker = L.marker([b.latitude, b.longitude]).addTo(map);
+                    marker.bindPopup(`
+                        <div style="min-width: 180px;">
+                            <strong>${b.name}</strong><br>
+                            <em style="color:#777;">${b.categoryName}</em><br>
+                            <span style="color:#f39c12;">${'★'.repeat(Math.round(b.averageRating))}${'☆'.repeat(5 - Math.round(b.averageRating))}</span>
+                            ${b.averageRating.toFixed(1)} (${b.reviewCount} reseñas)<br>
+                            <a href="negocio.html?id=${b.id}" style="color: #007bff; font-weight: bold;">Ver detalle →</a>
+                        </div>
+                    `);
+                    bounds.push([b.latitude, b.longitude]);
+                });
+
+                if (bounds.length > 1) {
+                    map.fitBounds(bounds, { padding: [30, 30] });
+                }
+            } catch (err) {
+                document.getElementById('map-count').textContent = 'Error al cargar los negocios.';
+                console.error('Error cargando mapa:', err);
+            }
+        });
+    </script>
+</body>
+</html>

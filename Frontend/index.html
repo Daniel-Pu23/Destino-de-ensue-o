@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Destino de Ensueño | Plataforma Turística</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="container">
+            <h1 class="logo"><a href="index.html">🌟 Destino de Ensueño</a></h1>
+            <nav>
+                <ul id="nav-links"></ul>
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h2>Descubre lo mejor de tu ciudad</h2>
+            <p>Explora restaurantes, miradores, emprendimientos y eventos increíbles.</p>
+            <div class="search-bar">
+                <input type="text" id="hero-search" placeholder="¿Qué estás buscando? Ej: Café, Mirador...">
+                <button onclick="heroSearch()">Buscar</button>
+            </div>
+        </div>
+    </section>
+
+    <main class="container section">
+        <h2 class="section-title">Explora por Categorías</h2>
+        <div class="category-grid" id="category-grid">
+            <!-- Cargado dinámicamente desde la API -->
+            <div class="card category-card" onclick="window.location.href='negocios.html'" style="cursor:pointer;">
+                <h3>🍽️ Restaurantes</h3>
+                <p>Descubre la gastronomía local</p>
+            </div>
+            <div class="card category-card" onclick="window.location.href='negocios.html'" style="cursor:pointer;">
+                <h3>🌄 Miradores</h3>
+                <p>Las mejores vistas panorámicas</p>
+            </div>
+            <div class="card category-card" onclick="window.location.href='negocios.html'" style="cursor:pointer;">
+                <h3>💼 Emprendimientos</h3>
+                <p>Apoya el comercio local</p>
+            </div>
+            <div class="card category-card" onclick="window.location.href='negocios.html'" style="cursor:pointer;">
+                <h3>🏨 Alojamientos</h3>
+                <p>Encuentra dónde quedarte</p>
+            </div>
+        </div>
+    </main>
+
+    <section class="container section">
+        <h2 class="section-title">Lugares Destacados</h2>
+        <div class="category-grid" id="featured-businesses">
+            <p id="featured-loading">Cargando...</p>
+        </div>
+    </section>
+
+    <section style="background: var(--primary-color); color: white; padding: 60px 0; text-align: center;">
+        <div class="container">
+            <h2>¿Quieres explorar el mapa?</h2>
+            <p style="margin: 15px 0;">Encuentra lugares cerca de ti en nuestro mapa interactivo.</p>
+            <a href="mapa.html" class="btn" style="background: white; color: var(--primary-color); padding: 12px 30px;">Ver Mapa Interactivo</a>
+        </div>
+    </section>
+
+    <section class="container section">
+        <h2 class="section-title">📅 Próximos Eventos</h2>
+        <div class="category-grid" id="upcoming-events">
+            <p id="events-loading">Cargando...</p>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2026 Destino de Ensueños — Proyecto Universitario · Herramientas de Programación 3</p>
+    </footer>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        function heroSearch() {
+            const term = document.getElementById('hero-search').value.trim();
+            if (term) {
+                window.location.href = `negocios.html?search=${encodeURIComponent(term)}`;
+            } else {
+                window.location.href = 'negocios.html';
+            }
+        }
+
+        document.getElementById('hero-search').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') heroSearch();
+        });
+
+        async function loadFeatured() {
+            const container = document.getElementById('featured-businesses');
+            try {
+                const businesses = await ApiService.request('/Business');
+                const top = businesses
+                    .filter(b => b.reviewCount > 0)
+                    .sort((a, b) => b.averageRating - a.averageRating)
+                    .slice(0, 3);
+
+                if (top.length === 0) {
+                    const all = businesses.slice(0, 3);
+                    container.innerHTML = all.length ? all.map(b => `
+                        <div class="card" onclick="window.location.href='negocio.html?id=${b.id}'" style="cursor:pointer;">
+                            <h3>${b.name}</h3>
+                            <p class="badge">${b.categoryName}</p>
+                            <p>${b.description}</p>
+                            <p>${renderStars(b.averageRating)} ${b.averageRating.toFixed(1)}</p>
+                        </div>
+                    `).join('') : '<p>No hay negocios publicados.</p>';
+                } else {
+                    container.innerHTML = top.map(b => `
+                        <div class="card" onclick="window.location.href='negocio.html?id=${b.id}'" style="cursor:pointer;">
+                            <h3>${b.name}</h3>
+                            <p class="badge">${b.categoryName}</p>
+                            <p>${b.description}</p>
+                            <p>${renderStars(b.averageRating)} ${b.averageRating.toFixed(1)} (${b.reviewCount} reseñas)</p>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                container.innerHTML = '<p>No se pudieron cargar los lugares. ¿Está el servidor corriendo?</p>';
+            }
+        }
+
+        async function loadUpcomingEvents() {
+            const container = document.getElementById('upcoming-events');
+            try {
+                const events = await ApiService.request('/Event/upcoming');
+                const top = events.slice(0, 3);
+                container.innerHTML = top.length ? top.map(e => `
+                    <div class="card" onclick="window.location.href='agenda.html'" style="cursor:pointer;">
+                        <h3>${e.name}</h3>
+                        <p class="badge">${e.businessName || 'Evento independiente'}</p>
+                        <p>📅 ${new Date(e.date).toLocaleDateString('es', {day:'numeric', month:'long', year:'numeric'})}</p>
+                        <p>${e.isFree ? '🎟 Entrada gratuita' : `💰 $${e.price}`}</p>
+                    </div>
+                `).join('') : '<p><a href="agenda.html">Ver todos los eventos</a></p>';
+            } catch (err) {
+                container.innerHTML = '<p>No se pudieron cargar los eventos.</p>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFeatured();
+            loadUpcomingEvents();
+        });
+    </script>
+</body>
+</html>
