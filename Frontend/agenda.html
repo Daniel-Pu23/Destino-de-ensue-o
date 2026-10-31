@@ -12,6 +12,12 @@
         .discount-card { border-left: 5px solid var(--secondary-color); }
         .discount-badge { background: var(--secondary-color); color: white; display: inline-block; padding: 4px 10px; border-radius: 20px; font-weight: bold; margin-bottom: 8px; }
         .event-date { font-weight: bold; color: var(--primary-color); }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); display: none; justify-content: center; align-items: center; z-index: 999; padding: 20px; }
+        .modal-overlay.open { display: flex; }
+        .modal-card { background: white; border-radius: 10px; max-width: 560px; width: 100%; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); max-height: 85vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 12px; margin-bottom: 15px; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #777; }
+        .detail-row { margin-bottom: 10px; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -47,6 +53,16 @@
         </div>
     </main>
 
+    <div id="agenda-modal" class="modal-overlay" onclick="if(event.target === this) closeAgendaModal()">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="agenda-modal-title">Detalle</h3>
+                <button class="modal-close" onclick="closeAgendaModal()">&times;</button>
+            </div>
+            <div id="agenda-modal-body"></div>
+        </div>
+    </div>
+
     <footer>
         <p>&copy; 2026 Destino de Ensueños</p>
     </footer>
@@ -54,6 +70,9 @@
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
     <script>
+        let loadedEvents = [];
+        let loadedDiscounts = [];
+
         function showTab(tab, btn) {
             document.getElementById('tab-events').style.display = tab === 'events' ? 'block' : 'none';
             document.getElementById('tab-discounts').style.display = tab === 'discounts' ? 'block' : 'none';
@@ -64,15 +83,15 @@
         async function loadEvents() {
             const container = document.getElementById('events-list');
             try {
-                const events = await ApiService.request('/Event/upcoming');
-                if (events.length === 0) {
+                loadedEvents = await ApiService.request('/Event/upcoming');
+                if (loadedEvents.length === 0) {
                     container.innerHTML = '<p style="text-align:center; padding:40px; color:#777;">No hay eventos próximos publicados.</p>';
                     return;
                 }
-                container.innerHTML = events.map(e => `
-                    <div class="card" onclick="window.location.href='${e.businessId ? `negocio.html?id=${e.businessId}` : '#'}'" style="cursor:pointer;">
+                container.innerHTML = loadedEvents.map(e => `
+                    <div class="card" onclick="openEventModal(${e.id})" style="cursor:pointer;">
                         <h3>${e.name}</h3>
-                        ${e.businessName ? `<span class="badge">${e.businessName}</span>` : '<span class="badge" style="background:#95a5a6;">Independiente</span>'}
+                        ${e.businessName ? `<span class="badge">${e.businessName}</span>` : '<span class="badge" style="background:#95a5a6; color:white;">Independiente</span>'}
                         <p class="event-date" style="margin-top:10px;">
                             📅 ${new Date(e.date).toLocaleDateString('es', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}
                         </p>
@@ -80,6 +99,7 @@
                         <p style="margin-top:8px;">${e.description}</p>
                         <p style="margin-top:10px; font-weight:bold;">${e.isFree ? '🎟 Entrada gratuita' : `💰 Entrada: $${e.price}`}</p>
                         ${e.location ? `<p>📍 ${e.location}</p>` : ''}
+                        ${e.organizer ? `<p style="font-size:0.88rem; color:#666; margin-top:4px;">👤 Organiza: ${e.organizer}</p>` : ''}
                     </div>
                 `).join('');
             } catch (err) {
@@ -90,17 +110,18 @@
         async function loadDiscounts() {
             const container = document.getElementById('discounts-list');
             try {
-                const discounts = await ApiService.request('/Discount/active');
-                if (discounts.length === 0) {
+                loadedDiscounts = await ApiService.request('/Discount/active');
+                if (loadedDiscounts.length === 0) {
                     container.innerHTML = '<p style="text-align:center; padding:40px; color:#777;">No hay descuentos activos en este momento.</p>';
                     return;
                 }
-                container.innerHTML = discounts.map(d => `
-                    <div class="card discount-card" onclick="window.location.href='negocio.html?id=${d.businessId}'" style="cursor:pointer;">
+                container.innerHTML = loadedDiscounts.map(d => `
+                    <div class="card discount-card" onclick="openDiscountModal(${d.id})" style="cursor:pointer;">
                         <span class="discount-badge">${d.percentage}% OFF</span>
                         <h3>${d.name}</h3>
                         <p class="badge">${d.businessName}</p>
                         <p style="margin-top:8px;">${d.description}</p>
+                        ${d.conditions ? `<p style="font-size:0.88rem; color:#555; margin-top:6px;">📋 Condiciones: ${d.conditions}</p>` : ''}
                         <p style="margin-top:10px; color:var(--secondary-color); font-weight:bold;">
                             Válido hasta: ${new Date(d.endDate).toLocaleDateString('es', {day:'numeric', month:'long', year:'numeric'})}
                         </p>
@@ -109,6 +130,42 @@
             } catch (err) {
                 container.innerHTML = `<p class="error-msg">No se pudieron cargar los descuentos: ${err.message}</p>`;
             }
+        }
+
+        function openEventModal(id) {
+            const e = loadedEvents.find(x => x.id === id);
+            if (!e) return;
+            document.getElementById('agenda-modal-title').textContent = `🎉 ${e.name}`;
+            document.getElementById('agenda-modal-body').innerHTML = `
+                <div class="detail-row"><strong>Organizador:</strong> ${e.organizer || 'No especificado'}</div>
+                <div class="detail-row"><strong>Establecimiento:</strong> ${e.businessName || 'Evento independiente'}</div>
+                <div class="detail-row"><strong>Fecha:</strong> ${new Date(e.date).toLocaleDateString('es', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}</div>
+                <div class="detail-row"><strong>Hora:</strong> ${e.time ? e.time.substring(0,5) + 'h' : 'No especificada'}</div>
+                <div class="detail-row"><strong>Ubicación:</strong> ${e.location || 'Ver con el organizador'}</div>
+                <div class="detail-row"><strong>Entrada:</strong> ${e.isFree ? 'Gratuita' : `$${e.price}`}</div>
+                <div class="detail-row"><strong>Descripción:</strong> ${e.description}</div>
+                ${e.businessId ? `<div style="margin-top:18px;"><a href="negocio.html?id=${e.businessId}" class="btn btn-primary" style="display:inline-block;">Ver establecimiento</a></div>` : ''}
+            `;
+            document.getElementById('agenda-modal').classList.add('open');
+        }
+
+        function openDiscountModal(id) {
+            const d = loadedDiscounts.find(x => x.id === id);
+            if (!d) return;
+            document.getElementById('agenda-modal-title').textContent = `💸 ${d.name} (${d.percentage}% OFF)`;
+            document.getElementById('agenda-modal-body').innerHTML = `
+                <div class="detail-row"><strong>Establecimiento:</strong> ${d.businessName}</div>
+                <div class="detail-row"><strong>Descuento:</strong> ${d.percentage}%</div>
+                <div class="detail-row"><strong>Vigencia:</strong> Desde el ${new Date(d.startDate).toLocaleDateString('es', {day:'numeric', month:'long', year:'numeric'})} hasta el ${new Date(d.endDate).toLocaleDateString('es', {day:'numeric', month:'long', year:'numeric'})}</div>
+                <div class="detail-row"><strong>Condiciones:</strong> ${d.conditions || 'Sin condiciones adicionales'}</div>
+                <div class="detail-row"><strong>Descripción:</strong> ${d.description}</div>
+                <div style="margin-top:18px;"><a href="negocio.html?id=${d.businessId}" class="btn btn-primary" style="display:inline-block;">Ver establecimiento</a></div>
+            `;
+            document.getElementById('agenda-modal').classList.add('open');
+        }
+
+        function closeAgendaModal() {
+            document.getElementById('agenda-modal').classList.remove('open');
         }
 
         document.addEventListener('DOMContentLoaded', () => {

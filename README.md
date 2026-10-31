@@ -6,7 +6,7 @@
 
 ## Descripción
 
-Destino de Ensueños es una plataforma web que permite a los usuarios descubrir lugares, negocios, restaurantes, emprendimientos, miradores, eventos y descuentos de una región o ciudad. La plataforma cuenta con un directorio turístico/comercial, sistema de valoraciones y reseñas, mapa interactivo, agenda de eventos y descuentos, y un panel de administración.
+Destino de Ensueños es una plataforma web que permite a los usuarios descubrir lugares, negocios, restaurantes, emprendimientos, miradores, eventos y descuentos de una región o ciudad. La plataforma cuenta con un directorio turístico/comercial, sistema de valoraciones y reseñas, mapa interactivo, agenda de eventos y descuentos, y un panel de administración con gestión completa (CRUD) y selector interactivo de ubicaciones en mapa.
 
 ---
 
@@ -19,7 +19,7 @@ Destino de Ensueños es una plataforma web que permite a los usuarios descubrir 
 | Base de datos | SQL Server (LocalDB o instancia local) |
 | Autenticación | ASP.NET Core Identity + JWT Bearer |
 | Frontend | HTML5, CSS3, JavaScript (Vanilla) |
-| Mapas | Leaflet 1.9.4 + OpenStreetMap |
+| Mapas y Geocodificación | Leaflet 1.9.4 + OpenStreetMap / Nominatim |
 | Documentación API | Swagger / OpenAPI |
 
 ---
@@ -86,7 +86,7 @@ dotnet ef database update
 
 ### Opción A — Script automático (recomendado)
 
-Ejecutar `iniciar-proyecto.bat` desde la raíz del proyecto. Abre el backend y el frontend en ventanas separadas y lanza el navegador automáticamente.
+Ejecutar `iniciar-proyecto.bat` desde la raíz del proyecto. Inicia el backend (`http://localhost:5058`) y el frontend (`http://localhost:5500`) en ventanas separadas y abre el navegador automáticamente.
 
 ### Opción B — Manual
 
@@ -100,7 +100,7 @@ La documentación Swagger en `http://localhost:5058/swagger`.
 
 **Frontend:**
 ```bash
-node .gemini-serve.js
+node .serve.js
 ```
 El frontend queda disponible en `http://localhost:5500`.
 
@@ -132,13 +132,11 @@ Destino de ensueño - Proyecto final/
 │   ├── negocio.html             # Detalle de un negocio
 │   ├── agenda.html              # Eventos y descuentos
 │   ├── mapa.html                # Mapa interactivo
-│   ├── panel-admin.html         # Panel de administración
+│   ├── panel-admin.html         # Panel de administración (CRUD + selector de mapa)
 │   ├── login.html               # Inicio de sesión
 │   └── registro.html            # Registro de usuario
-├── .gemini-serve.js             # Servidor HTTP local del frontend
-├── iniciar-proyecto.bat         # Script de inicio completo
-├── iniciar-api.bat              # Script de inicio solo del backend
-└── iniciar-frontend.bat         # Script de inicio solo del frontend
+├── .serve.js                    # Servidor HTTP local del frontend
+└── iniciar-proyecto.bat         # Script único de inicio automático
 ```
 
 ---
@@ -148,10 +146,11 @@ Destino de ensueño - Proyecto final/
 - **Directorio turístico**: listado de negocios, restaurantes, emprendimientos y miradores con búsqueda por texto y filtro por categoría.
 - **Detalle de negocio**: información completa, mapa integrado con ubicación exacta, valoración promedio y lista de reseñas.
 - **Mapa interactivo**: visualización geográfica de todos los negocios publicados con popups informativos.
-- **Agenda**: sección de eventos próximos y descuentos activos con pestañas independientes.
+- **Agenda**: sección de eventos próximos y descuentos activos con pestañas independientes y vista detallada en ventana modal.
 - **Sistema de valoraciones**: escala de 1 a 5 estrellas. Un usuario puede dejar una sola reseña por negocio (creación o actualización).
 - **Autenticación**: registro e inicio de sesión con JWT. Redirección automática según rol.
-- **Panel de administración**: creación de negocios, eventos y descuentos. Acceso restringido al rol Admin.
+- **Panel de administración (CRUD completo)**: consulta, creación, edición y eliminación (con confirmación previa) de negocios, eventos y descuentos. Acceso restringido al rol `Admin`.
+- **Selector interactivo de ubicación**: búsqueda de lugares o direcciones por texto, selección con clic o arrastre de marcador sobre el mapa, geocodificación inversa para mostrar la dirección verificada y guardado automático de coordenadas.
 
 ---
 
@@ -162,14 +161,27 @@ Destino de ensueño - Proyecto final/
 | POST | `/api/Auth/register` | Público | Registro de usuario |
 | POST | `/api/Auth/login` | Público | Inicio de sesión |
 | POST | `/api/Auth/register-admin` | Admin | Crear cuenta de administrador |
+| GET | `/api/Category` | Público | Listado de categorías |
 | GET | `/api/Business` | Público | Listado de negocios publicados |
+| GET | `/api/Business/admin` | Admin | Listado completo de negocios (incluye borradores) |
 | GET | `/api/Business/{id}` | Público | Detalle de un negocio |
 | POST | `/api/Business` | Admin | Crear negocio |
-| GET | `/api/Category` | Público | Listado de categorías |
+| PUT | `/api/Business/{id}` | Admin | Editar negocio existente |
+| DELETE | `/api/Business/{id}` | Admin | Eliminar negocio |
+| GET | `/api/Business/geocode` | Admin | Buscar dirección o lugar (Nominatim OSM) |
+| GET | `/api/Business/reverse-geocode` | Admin | Obtener dirección a partir de coordenadas |
 | GET | `/api/Event/upcoming` | Público | Próximos eventos publicados |
+| GET | `/api/Event/admin` | Admin | Listado completo de eventos |
+| GET | `/api/Event/{id}` | Público | Detalle de un evento |
 | POST | `/api/Event` | Admin | Crear evento |
+| PUT | `/api/Event/{id}` | Admin | Editar evento existente |
+| DELETE | `/api/Event/{id}` | Admin | Eliminar evento |
 | GET | `/api/Discount/active` | Público | Descuentos activos publicados |
+| GET | `/api/Discount/admin` | Admin | Listado completo de descuentos |
+| GET | `/api/Discount/{id}` | Público | Detalle de un descuento |
 | POST | `/api/Discount` | Admin | Crear descuento |
+| PUT | `/api/Discount/{id}` | Admin | Editar descuento existente |
+| DELETE | `/api/Discount/{id}` | Admin | Eliminar descuento |
 | GET | `/api/Review/{businessId}` | Público | Reseñas de un negocio |
 | POST | `/api/Review` | Usuario autenticado | Crear o actualizar reseña |
 
@@ -181,16 +193,16 @@ El sistema utiliza JWT Bearer con dos roles:
 
 | Rol | Acceso |
 |-----|--------|
-| **Admin** | Panel de administración, creación de contenido, gestión de la plataforma |
+| **Admin** | Panel de administración, CRUD completo de negocios, eventos y descuentos |
 | **User** | Exploración del contenido, escritura de reseñas y valoraciones |
 
 El registro público asigna siempre el rol `User`. La creación de cuentas `Admin` requiere autenticación previa con un administrador existente.
 
 ---
 
-## Mapas
+## Mapas y geocodificación
 
-El mapa interactivo utiliza **Leaflet 1.9.4** con tiles de **OpenStreetMap** (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`), de uso libre bajo la [Tile Usage Policy de OpenStreetMap](https://operations.osmfoundation.org/policies/tiles/). No se requiere API key.
+El mapa interactivo utiliza **Leaflet 1.9.4** con tiles de **OpenStreetMap** (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`), bajo la [Tile Usage Policy de OpenStreetMap](https://operations.osmfoundation.org/policies/tiles/), y búsqueda/geocodificación inversa mediante **Nominatim** respetando su límite de uso y caché. No se requiere API key.
 
 ---
 

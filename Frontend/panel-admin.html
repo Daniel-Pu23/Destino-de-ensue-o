@@ -4,25 +4,52 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Administrativo | Destino de Ensueño</title>
+    <meta name="referrer" content="origin">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         .admin-layout { display: grid; grid-template-columns: 220px 1fr; gap: 30px; margin-top: 20px; }
-        .admin-sidebar { background: #2c3e50; color: white; border-radius: 8px; padding: 20px; }
+        .admin-sidebar { background: #2c3e50; color: white; border-radius: 8px; padding: 20px; align-self: start; }
         .admin-sidebar h3 { margin-bottom: 15px; border-bottom: 1px solid #455; padding-bottom: 10px; }
         .admin-sidebar a { display: block; color: #bdc3c7; padding: 10px; border-radius: 4px; margin-bottom: 5px; cursor: pointer; }
         .admin-sidebar a:hover, .admin-sidebar a.active { background: #007bff; color: white; }
         .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px; }
         .stat-card { background: #2c3e50; color: white; padding: 20px; border-radius: 8px; text-align: center; }
         .stat-card h3 { font-size: 2.2rem; margin-bottom: 5px; }
-        .admin-panel { display: none; }
+        .admin-panel { display: none; background: white; padding: 25px; border-radius: 10px; box-shadow: var(--card-shadow); }
         .admin-panel.active { display: block; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         table { width: 100%; border-collapse: collapse; }
-        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
         th { background: #f1f1f1; font-weight: bold; }
         tr:hover { background: #fafafa; }
-        .badge-active { background: #27ae60; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; }
-        .badge-inactive { background: #e74c3c; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; }
+        .badge-active { background: #27ae60; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; display: inline-block; }
+        .badge-inactive { background: #e74c3c; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; display: inline-block; }
+        .action-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+        .btn-sm { padding: 5px 10px; font-size: 0.82rem; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; color: white; }
+        .btn-view { background: #17a2b8; }
+        .btn-view:hover { background: #138496; }
+        .btn-edit { background: #f39c12; }
+        .btn-edit:hover { background: #d68910; }
+        .btn-delete { background: #e74c3c; }
+        .btn-delete:hover { background: #c0392b; }
+        .btn-cancel { background: #6c757d; color: white; margin-left: 10px; }
+        .btn-cancel:hover { background: #5a6268; }
+        .location-picker-box { background: #f8fafd; border: 1px solid #dce6f2; border-radius: 8px; padding: 16px; margin-bottom: 18px; }
+        .location-search-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        .location-search-row input { flex: 1; min-width: 220px; }
+        .location-results { list-style: none; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 6px; background: white; max-height: 180px; overflow-y: auto; display: none; }
+        .location-results li { padding: 9px 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 0.9rem; }
+        .location-results li:last-child { border-bottom: none; }
+        .location-results li:hover { background: #e8f4fd; color: var(--primary-color); }
+        #admin-location-map { height: 340px; width: 100%; border-radius: 8px; border: 1px solid #ccc; z-index: 1; }
+        .location-status { margin-top: 10px; padding: 10px 12px; border-radius: 6px; background: #eef6ff; border-left: 4px solid var(--primary-color); font-size: 0.9rem; color: #2c3e50; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); display: none; justify-content: center; align-items: center; z-index: 999; padding: 20px; }
+        .modal-overlay.open { display: flex; }
+        .modal-card { background: white; border-radius: 10px; max-width: 600px; width: 100%; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); max-height: 85vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 12px; margin-bottom: 15px; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #777; }
+        .detail-row { margin-bottom: 10px; line-height: 1.5; }
         @media (max-width: 768px) { .admin-layout { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -38,79 +65,144 @@
         <h2>⚙ Panel Administrativo</h2>
 
         <div class="stat-grid" style="margin-top:20px;">
-            <div class="stat-card"><h3 id="stat-biz">-</h3><p>Negocios</p></div>
-            <div class="stat-card"><h3 id="stat-evt">-</h3><p>Eventos Futuros</p></div>
-            <div class="stat-card"><h3 id="stat-dsc">-</h3><p>Descuentos Activos</p></div>
+            <div class="stat-card"><h3 id="stat-biz">-</h3><p>Negocios Registrados</p></div>
+            <div class="stat-card"><h3 id="stat-evt">-</h3><p>Eventos Registrados</p></div>
+            <div class="stat-card"><h3 id="stat-dsc">-</h3><p>Descuentos Registrados</p></div>
         </div>
 
         <div class="admin-layout">
             <aside class="admin-sidebar">
                 <h3>Gestión</h3>
-                <a class="active" onclick="showPanel('businesses', this)">🏢 Negocios</a>
-                <a onclick="showPanel('events', this)">🎉 Eventos</a>
-                <a onclick="showPanel('discounts', this)">💸 Descuentos</a>
+                <a id="nav-businesses" class="active" onclick="showPanel('businesses', this)">🏢 Negocios</a>
+                <a id="nav-events" onclick="showPanel('events', this)">🎉 Eventos</a>
+                <a id="nav-discounts" onclick="showPanel('discounts', this)">💸 Descuentos</a>
             </aside>
 
             <div>
                 <div id="panel-businesses" class="admin-panel active">
-                    <h3>Crear Nuevo Negocio</h3>
+                    <h3 id="biz-form-title">Crear Nuevo Negocio</h3>
                     <form id="form-business" style="margin-top:15px;">
+                        <input type="hidden" id="biz-id" value="">
                         <div class="form-grid">
-                            <div class="form-group"><label>Nombre *</label><input type="text" id="biz-name" required></div>
-                            <div class="form-group"><label>Categoría *</label>
-                                <select id="biz-category" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                            <div class="form-group">
+                                <label for="biz-name">Nombre *</label>
+                                <input type="text" id="biz-name" required placeholder="Ej: Mirador La Colina">
+                            </div>
+                            <div class="form-group">
+                                <label for="biz-category">Categoría *</label>
+                                <select id="biz-category" required>
                                     <option value="">Seleccionar...</option>
                                 </select>
                             </div>
-                            <div class="form-group"><label>Teléfono</label><input type="text" id="biz-phone"></div>
-                            <div class="form-group"><label>Correo</label><input type="email" id="biz-email"></div>
-                            <div class="form-group"><label>Dirección *</label><input type="text" id="biz-address" required></div>
-                            <div class="form-group"><label>Latitud</label><input type="number" step="any" id="biz-lat" placeholder="ej: 4.6097"></div>
-                            <div class="form-group"><label>Longitud</label><input type="number" step="any" id="biz-lng" placeholder="ej: -74.0817"></div>
-                            <div class="form-group" style="display:flex; align-items:center; gap:10px; padding-top:25px;">
-                                <input type="checkbox" id="biz-published" style="width:auto;">
-                                <label for="biz-published">Publicar inmediatamente</label>
+                            <div class="form-group">
+                                <label for="biz-phone">Teléfono</label>
+                                <input type="text" id="biz-phone" placeholder="Ej: 300 123 4567">
+                            </div>
+                            <div class="form-group">
+                                <label for="biz-email">Correo electrónico</label>
+                                <input type="email" id="biz-email" placeholder="contacto@negocio.com">
                             </div>
                         </div>
-                        <div class="form-group"><label>Descripción *</label>
-                            <textarea id="biz-desc" rows="3" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;" required></textarea>
+
+                        <div class="location-picker-box">
+                            <label style="font-weight:600; display:block; margin-bottom:6px;">📍 Ubicación del negocio en el mapa *</label>
+                            <p style="font-size:0.88rem; color:#555; margin-bottom:10px;">
+                                Busca por dirección, barrio, municipio o lugar, o haz clic directamente en el mapa. También puedes arrastrar el marcador para ajustar el punto exacto.
+                            </p>
+                            <div class="location-search-row">
+                                <input type="text" id="location-search" placeholder="Ej: Parque Principal, Plaza de Bolívar, Calle 10...">
+                                <button type="button" class="btn btn-primary" id="btn-location-search" onclick="searchLocation()">🔍 Buscar en el mapa</button>
+                            </div>
+                            <ul id="location-results" class="location-results"></ul>
+                            <div id="admin-location-map"></div>
+                            <div id="location-status" class="location-status">
+                                Haz clic en el mapa o busca un lugar arriba para marcar la ubicación del negocio.
+                            </div>
+                            <input type="hidden" id="biz-lat" value="">
+                            <input type="hidden" id="biz-lng" value="">
                         </div>
-                        <p id="biz-msg" style="margin:10px 0;"></p>
-                        <button type="submit" class="btn btn-primary">Crear Negocio</button>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="biz-address">Dirección o referencia legible *</label>
+                                <input type="text" id="biz-address" required placeholder="Dirección confirmada o referencia del lugar">
+                            </div>
+                            <div class="form-group" style="display:flex; align-items:center; gap:10px; padding-top:25px;">
+                                <input type="checkbox" id="biz-published" style="width:auto;" checked>
+                                <label for="biz-published" style="margin-bottom:0;">Publicar inmediatamente</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="biz-desc">Descripción *</label>
+                            <textarea id="biz-desc" rows="3" required placeholder="Describe lo que ofrece el negocio..."></textarea>
+                        </div>
+
+                        <p id="biz-msg" style="margin:10px 0; font-weight:600;"></p>
+                        <div>
+                            <button type="submit" class="btn btn-primary" id="biz-submit-btn">Crear Negocio</button>
+                            <button type="button" class="btn btn-cancel" id="biz-cancel-btn" style="display:none;" onclick="resetBusinessForm()">Cancelar edición</button>
+                        </div>
                     </form>
+
                     <hr style="margin:30px 0;">
                     <h3>Negocios registrados</h3>
                     <div id="biz-table" style="margin-top:15px; overflow-x:auto;"><p>Cargando...</p></div>
                 </div>
 
                 <div id="panel-events" class="admin-panel">
-                    <h3>Crear Nuevo Evento</h3>
+                    <h3 id="evt-form-title">Crear Nuevo Evento</h3>
                     <form id="form-event" style="margin-top:15px;">
+                        <input type="hidden" id="evt-id" value="">
                         <div class="form-grid">
-                            <div class="form-group"><label>Nombre *</label><input type="text" id="evt-name" required></div>
-                            <div class="form-group"><label>Negocio asociado (opcional)</label>
-                                <select id="evt-business" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                            <div class="form-group">
+                                <label for="evt-name">Nombre *</label>
+                                <input type="text" id="evt-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="evt-business">Negocio asociado (opcional)</label>
+                                <select id="evt-business">
                                     <option value="">Independiente</option>
                                 </select>
                             </div>
-                            <div class="form-group"><label>Fecha *</label><input type="date" id="evt-date" required></div>
-                            <div class="form-group"><label>Hora</label><input type="time" id="evt-time"></div>
-                            <div class="form-group"><label>Lugar</label><input type="text" id="evt-location"></div>
-                            <div class="form-group"><label>Organizador</label><input type="text" id="evt-organizer"></div>
                             <div class="form-group">
-                                <label><input type="checkbox" id="evt-free" onchange="togglePrice()"> Entrada gratuita</label>
+                                <label for="evt-date">Fecha *</label>
+                                <input type="date" id="evt-date" required>
                             </div>
-                            <div class="form-group" id="price-group"><label>Precio</label><input type="number" step="0.01" id="evt-price" value="0"></div>
+                            <div class="form-group">
+                                <label for="evt-time">Hora</label>
+                                <input type="time" id="evt-time">
+                            </div>
+                            <div class="form-group">
+                                <label for="evt-location">Lugar</label>
+                                <input type="text" id="evt-location" placeholder="Dirección o punto de encuentro">
+                            </div>
+                            <div class="form-group">
+                                <label for="evt-organizer">Organizador</label>
+                                <input type="text" id="evt-organizer">
+                            </div>
+                            <div class="form-group" style="display:flex; align-items:center; gap:10px; padding-top:25px;">
+                                <input type="checkbox" id="evt-free" style="width:auto;" onchange="togglePrice()">
+                                <label for="evt-free" style="margin-bottom:0;">Entrada gratuita</label>
+                            </div>
+                            <div class="form-group" id="price-group">
+                                <label for="evt-price">Precio</label>
+                                <input type="number" step="0.01" min="0" id="evt-price" value="0">
+                            </div>
                         </div>
-                        <div class="form-group"><label>Descripción *</label>
-                            <textarea id="evt-desc" rows="3" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;" required></textarea>
+                        <div class="form-group">
+                            <label for="evt-desc">Descripción *</label>
+                            <textarea id="evt-desc" rows="3" required></textarea>
                         </div>
                         <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-                            <input type="checkbox" id="evt-published" style="width:auto;">
-                            <label for="evt-published">Publicar inmediatamente</label>
+                            <input type="checkbox" id="evt-published" style="width:auto;" checked>
+                            <label for="evt-published" style="margin-bottom:0;">Publicar inmediatamente</label>
                         </div>
-                        <p id="evt-msg" style="margin:10px 0;"></p>
-                        <button type="submit" class="btn btn-primary">Crear Evento</button>
+                        <p id="evt-msg" style="margin:10px 0; font-weight:600;"></p>
+                        <div>
+                            <button type="submit" class="btn btn-primary" id="evt-submit-btn">Crear Evento</button>
+                            <button type="button" class="btn btn-cancel" id="evt-cancel-btn" style="display:none;" onclick="resetEventForm()">Cancelar edición</button>
+                        </div>
                     </form>
                     <hr style="margin:30px 0;">
                     <h3>Eventos registrados</h3>
@@ -118,136 +210,682 @@
                 </div>
 
                 <div id="panel-discounts" class="admin-panel">
-                    <h3>Crear Nuevo Descuento</h3>
+                    <h3 id="dsc-form-title">Crear Nuevo Descuento</h3>
                     <form id="form-discount" style="margin-top:15px;">
+                        <input type="hidden" id="dsc-id" value="">
                         <div class="form-grid">
-                            <div class="form-group"><label>Nombre *</label><input type="text" id="dsc-name" required></div>
-                            <div class="form-group"><label>Negocio asociado *</label>
-                                <select id="dsc-business" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                            <div class="form-group">
+                                <label for="dsc-name">Nombre *</label>
+                                <input type="text" id="dsc-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="dsc-business">Negocio asociado *</label>
+                                <select id="dsc-business" required>
                                     <option value="">Seleccionar...</option>
                                 </select>
                             </div>
-                            <div class="form-group"><label>Porcentaje (%) *</label><input type="number" id="dsc-pct" min="1" max="100" required></div>
-                            <div class="form-group"><label>Condiciones</label><input type="text" id="dsc-cond"></div>
-                            <div class="form-group"><label>Fecha de inicio *</label><input type="date" id="dsc-start" required></div>
-                            <div class="form-group"><label>Fecha de fin *</label><input type="date" id="dsc-end" required></div>
+                            <div class="form-group">
+                                <label for="dsc-pct">Porcentaje (%) *</label>
+                                <input type="number" id="dsc-pct" min="1" max="100" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="dsc-cond">Condiciones</label>
+                                <input type="text" id="dsc-cond" placeholder="Ej: Válido de lunes a jueves">
+                            </div>
+                            <div class="form-group">
+                                <label for="dsc-start">Fecha de inicio *</label>
+                                <input type="date" id="dsc-start" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="dsc-end">Fecha de fin *</label>
+                                <input type="date" id="dsc-end" required>
+                            </div>
                         </div>
-                        <div class="form-group"><label>Descripción *</label>
-                            <textarea id="dsc-desc" rows="3" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;" required></textarea>
+                        <div class="form-group">
+                            <label for="dsc-desc">Descripción *</label>
+                            <textarea id="dsc-desc" rows="3" required></textarea>
                         </div>
                         <div class="form-group" style="display:flex; align-items:center; gap:10px;">
-                            <input type="checkbox" id="dsc-published" style="width:auto;">
-                            <label for="dsc-published">Publicar inmediatamente</label>
+                            <input type="checkbox" id="dsc-published" style="width:auto;" checked>
+                            <label for="dsc-published" style="margin-bottom:0;">Publicar inmediatamente</label>
                         </div>
-                        <p id="dsc-msg" style="margin:10px 0;"></p>
-                        <button type="submit" class="btn btn-primary">Crear Descuento</button>
+                        <p id="dsc-msg" style="margin:10px 0; font-weight:600;"></p>
+                        <div>
+                            <button type="submit" class="btn btn-primary" id="dsc-submit-btn">Crear Descuento</button>
+                            <button type="button" class="btn btn-cancel" id="dsc-cancel-btn" style="display:none;" onclick="resetDiscountForm()">Cancelar edición</button>
+                        </div>
                     </form>
+                    <hr style="margin:30px 0;">
+                    <h3>Descuentos registrados</h3>
+                    <div id="dsc-table" style="margin-top:15px; overflow-x:auto;"><p>Cargando...</p></div>
                 </div>
             </div>
         </div>
     </main>
 
+    <div id="detail-modal" class="modal-overlay" onclick="if(event.target === this) closeModal()">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-title">Detalle</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
     <footer>
         <p>&copy; 2026 Destino de Ensueños</p>
     </footer>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
     <script>
+        let adminMap = null;
+        let adminMarker = null;
+        let allBusinesses = [];
+        let allEvents = [];
+        let allDiscounts = [];
+        let lastVerifiedAddress = '';
+
+        const DEFAULT_LAT = 4.6097;
+        const DEFAULT_LNG = -74.0817;
+
         document.addEventListener('DOMContentLoaded', async () => {
             if (localStorage.getItem('role') !== 'Admin') {
                 alert('Acceso denegado. Esta sección es exclusiva para administradores.');
                 window.location.href = 'index.html';
                 return;
             }
-            await loadStats();
+
+            initLocationPickerMap();
+
+            document.getElementById('location-search').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    searchLocation();
+                }
+            });
+
             await loadCategories();
-            await loadBusinessesForAdmin();
-            await loadEventsForAdmin();
+            await refreshAllAdminData();
+
+            const params = new URLSearchParams(window.location.search);
+            const editBizId = params.get('editBusiness');
+            if (editBizId) {
+                editBusiness(parseInt(editBizId));
+            }
         });
+
+        function initLocationPickerMap() {
+            adminMap = L.map('admin-location-map').setView([DEFAULT_LAT, DEFAULT_LNG], 13);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(adminMap);
+
+            adminMap.on('click', async (e) => {
+                const { lat, lng } = e.latlng;
+                setMapLocation(lat, lng, null, true);
+                await reverseGeocodePoint(lat, lng);
+            });
+        }
+
+        function setMapLocation(lat, lng, verifiedAddress = null, panMap = true) {
+            const numLat = parseFloat(lat);
+            const numLng = parseFloat(lng);
+            if (isNaN(numLat) || isNaN(numLng)) return;
+
+            document.getElementById('biz-lat').value = numLat.toFixed(6);
+            document.getElementById('biz-lng').value = numLng.toFixed(6);
+
+            if (!adminMarker) {
+                adminMarker = L.marker([numLat, numLng], { draggable: true }).addTo(adminMap);
+                adminMarker.on('dragend', async () => {
+                    const pos = adminMarker.getLatLng();
+                    document.getElementById('biz-lat').value = pos.lat.toFixed(6);
+                    document.getElementById('biz-lng').value = pos.lng.toFixed(6);
+                    await reverseGeocodePoint(pos.lat, pos.lng);
+                });
+            } else {
+                adminMarker.setLatLng([numLat, numLng]);
+            }
+
+            if (panMap) {
+                adminMap.setView([numLat, numLng], Math.max(adminMap.getZoom(), 15));
+            }
+
+            if (verifiedAddress) {
+                lastVerifiedAddress = verifiedAddress;
+                updateLocationStatusUI(verifiedAddress, true);
+                const addrInput = document.getElementById('biz-address');
+                if (!addrInput.value.trim()) {
+                    addrInput.value = verifiedAddress;
+                }
+            }
+        }
+
+        function updateLocationStatusUI(addressText, isVerified) {
+            const statusEl = document.getElementById('location-status');
+            if (isVerified && addressText) {
+                statusEl.innerHTML = `
+                    <div><strong>✓ Ubicación seleccionada en el mapa:</strong> ${escapeHtml(addressText)}</div>
+                    <div style="margin-top:6px; font-size:0.82rem; color:#555;">
+                        Coordenadas guardadas automáticamente.
+                        <button type="button" class="btn-sm btn-view" style="margin-left:8px;" onclick="applySelectedAddress()">Usar esta dirección en el campo Dirección</button>
+                    </div>
+                `;
+            } else {
+                statusEl.innerHTML = `
+                    <div><strong>📍 Punto marcado en el mapa.</strong></div>
+                    <div style="margin-top:4px; font-size:0.85rem; color:#666;">
+                        ${escapeHtml(addressText || 'Coordenadas guardadas automáticamente. No se pudo verificar una dirección postal exacta para este punto; por favor verifica el campo Dirección manualmente.')}
+                    </div>
+                `;
+            }
+        }
+
+        function applySelectedAddress() {
+            if (lastVerifiedAddress) {
+                document.getElementById('biz-address').value = lastVerifiedAddress;
+            }
+        }
+
+        async function searchLocation() {
+            const query = document.getElementById('location-search').value.trim();
+            const resultsEl = document.getElementById('location-results');
+            const statusEl = document.getElementById('location-status');
+            const btn = document.getElementById('btn-location-search');
+
+            if (query.length < 2) {
+                statusEl.innerHTML = '<span style="color:#e74c3c;">Por favor escribe al menos 2 caracteres para buscar una dirección o lugar.</span>';
+                resultsEl.style.display = 'none';
+                return;
+            }
+
+            try {
+                btn.disabled = true;
+                btn.textContent = 'Buscando...';
+                statusEl.textContent = 'Buscando ubicación...';
+                resultsEl.style.display = 'none';
+                resultsEl.innerHTML = '';
+
+                const results = await ApiService.request(`/Business/geocode?q=${encodeURIComponent(query)}`);
+                if (!results || results.length === 0) {
+                    statusEl.innerHTML = '<span style="color:#d35400;">No se encontraron resultados para esa búsqueda. Intenta con otros términos o haz clic directamente en el mapa.</span>';
+                    return;
+                }
+
+                const first = results[0];
+                setMapLocation(first.latitude, first.longitude, first.displayName, true);
+                document.getElementById('biz-address').value = first.displayName;
+
+                if (results.length > 1) {
+                    resultsEl.innerHTML = results.map((r, idx) => `
+                        <li onclick="selectSearchResult(${idx})">📍 ${escapeHtml(r.displayName)}</li>
+                    `).join('');
+                    resultsEl.dataset.items = JSON.stringify(results);
+                    resultsEl.style.display = 'block';
+                }
+            } catch (err) {
+                statusEl.innerHTML = `<span style="color:#e74c3c;">${escapeHtml(err.message)}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Buscar en el mapa';
+            }
+        }
+
+        function selectSearchResult(index) {
+            const resultsEl = document.getElementById('location-results');
+            const items = JSON.parse(resultsEl.dataset.items || '[]');
+            const item = items[index];
+            if (!item) return;
+
+            setMapLocation(item.latitude, item.longitude, item.displayName, true);
+            document.getElementById('biz-address').value = item.displayName;
+            resultsEl.style.display = 'none';
+        }
+
+        async function reverseGeocodePoint(lat, lng) {
+            const statusEl = document.getElementById('location-status');
+            statusEl.textContent = 'Consultando referencia de la ubicación seleccionada...';
+            try {
+                const res = await ApiService.request(`/Business/reverse-geocode?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`);
+                if (res && res.verified && res.displayName) {
+                    lastVerifiedAddress = res.displayName;
+                    updateLocationStatusUI(res.displayName, true);
+                    const addrInput = document.getElementById('biz-address');
+                    if (!addrInput.value.trim()) {
+                        addrInput.value = res.displayName;
+                    }
+                } else {
+                    lastVerifiedAddress = '';
+                    updateLocationStatusUI('No se pudo obtener una dirección verificada para este punto. Las coordenadas quedaron guardadas; completa o revisa el campo Dirección manualmente.', false);
+                }
+            } catch (err) {
+                lastVerifiedAddress = '';
+                updateLocationStatusUI('Coordenadas guardadas automáticamente. Completa o verifica la dirección manualmente.', false);
+            }
+        }
 
         function showPanel(name, link) {
             document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.admin-sidebar a').forEach(a => a.classList.remove('active'));
             document.getElementById(`panel-${name}`).classList.add('active');
-            link.classList.add('active');
+            if (link) link.classList.add('active');
+            if (name === 'businesses' && adminMap) {
+                setTimeout(() => adminMap.invalidateSize(), 100);
+            }
         }
 
-        async function loadStats() {
-            try {
-                const [biz, evt, dsc] = await Promise.all([
-                    ApiService.request('/Business'),
-                    ApiService.request('/Event/upcoming'),
-                    ApiService.request('/Discount/active')
-                ]);
-                document.getElementById('stat-biz').textContent = biz.length;
-                document.getElementById('stat-evt').textContent = evt.length;
-                document.getElementById('stat-dsc').textContent = dsc.length;
-            } catch (err) { console.error('Error cargando stats:', err); }
+        async function refreshAllAdminData() {
+            await Promise.all([
+                loadBusinessesForAdmin(),
+                loadEventsForAdmin(),
+                loadDiscountsForAdmin()
+            ]);
+            updateStatsUI();
+        }
+
+        function updateStatsUI() {
+            document.getElementById('stat-biz').textContent = allBusinesses.length;
+            document.getElementById('stat-evt').textContent = allEvents.length;
+            document.getElementById('stat-dsc').textContent = allDiscounts.length;
         }
 
         async function loadCategories() {
             try {
                 const cats = await ApiService.request('/Category');
-                ['biz-category'].forEach(id => {
-                    const sel = document.getElementById(id);
-                    cats.forEach(c => {
-                        const opt = document.createElement('option');
-                        opt.value = c.id;
-                        opt.textContent = c.name;
-                        sel.appendChild(opt);
-                    });
+                const sel = document.getElementById('biz-category');
+                sel.innerHTML = '<option value="">Seleccionar...</option>';
+                cats.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name;
+                    sel.appendChild(opt);
                 });
-            } catch (err) { console.error('Error cargando categorías:', err); }
+            } catch (err) {
+                console.error('Error cargando categorías:', err);
+            }
         }
 
         async function loadBusinessesForAdmin() {
             try {
-                const biz = await ApiService.request('/Business');
-                ['evt-business', 'dsc-business'].forEach(id => {
-                    const sel = document.getElementById(id);
-                    biz.forEach(b => {
-                        const opt = document.createElement('option');
-                        opt.value = b.id;
-                        opt.textContent = b.name;
-                        sel.appendChild(opt);
-                    });
+                allBusinesses = await ApiService.request('/Business/admin');
+
+                const evtSel = document.getElementById('evt-business');
+                const currentEvtVal = evtSel.value;
+                evtSel.innerHTML = '<option value="">Independiente</option>';
+
+                const dscSel = document.getElementById('dsc-business');
+                const currentDscVal = dscSel.value;
+                dscSel.innerHTML = '<option value="">Seleccionar...</option>';
+
+                allBusinesses.forEach(b => {
+                    const opt1 = document.createElement('option');
+                    opt1.value = b.id;
+                    opt1.textContent = b.name;
+                    evtSel.appendChild(opt1);
+
+                    const opt2 = document.createElement('option');
+                    opt2.value = b.id;
+                    opt2.textContent = b.name;
+                    dscSel.appendChild(opt2);
                 });
+
+                evtSel.value = currentEvtVal;
+                dscSel.value = currentDscVal;
+
                 const table = document.getElementById('biz-table');
-                table.innerHTML = biz.length ? `
+                table.innerHTML = allBusinesses.length ? `
                     <table>
-                        <thead><tr><th>ID</th><th>Nombre</th><th>Categoría</th><th>Publicado</th><th>Rating</th></tr></thead>
-                        <tbody>${biz.map(b => `
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Categoría</th>
+                                <th>Dirección</th>
+                                <th>Estado</th>
+                                <th>Rating</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>${allBusinesses.map(b => `
                             <tr>
                                 <td>${b.id}</td>
-                                <td><a href="negocio.html?id=${b.id}">${b.name}</a></td>
-                                <td>${b.categoryName}</td>
+                                <td><a href="negocio.html?id=${b.id}" style="color:var(--primary-color); font-weight:600;">${escapeHtml(b.name)}</a></td>
+                                <td>${escapeHtml(b.categoryName)}</td>
+                                <td>${escapeHtml(b.address)}</td>
                                 <td><span class="${b.isPublished ? 'badge-active' : 'badge-inactive'}">${b.isPublished ? 'Publicado' : 'Borrador'}</span></td>
                                 <td>${renderStars(b.averageRating)} ${b.averageRating.toFixed(1)}</td>
+                                <td>
+                                    <div class="action-btns">
+                                        <button type="button" class="btn-sm btn-view" onclick="viewBusinessDetail(${b.id})">👁 Ver</button>
+                                        <button type="button" class="btn-sm btn-edit" onclick="editBusiness(${b.id})">✏ Editar</button>
+                                        <button type="button" class="btn-sm btn-delete" onclick="deleteBusiness(${b.id})">🗑 Eliminar</button>
+                                    </div>
+                                </td>
                             </tr>
                         `).join('')}</tbody>
                     </table>
                 ` : '<p>No hay negocios registrados.</p>';
-            } catch (err) { console.error(err); }
+            } catch (err) {
+                document.getElementById('biz-table').innerHTML = `<p class="error-msg">Error al cargar negocios: ${escapeHtml(err.message)}</p>`;
+            }
         }
 
         async function loadEventsForAdmin() {
             try {
-                const evts = await ApiService.request('/Event/upcoming');
+                allEvents = await ApiService.request('/Event/admin');
                 const table = document.getElementById('evt-table');
-                table.innerHTML = evts.length ? `
+                table.innerHTML = allEvents.length ? `
                     <table>
-                        <thead><tr><th>Nombre</th><th>Fecha</th><th>Negocio</th></tr></thead>
-                        <tbody>${evts.map(e => `
+                        <thead>
                             <tr>
-                                <td>${e.name}</td>
-                                <td>${new Date(e.date).toLocaleDateString('es')}</td>
-                                <td>${e.businessName || 'Independiente'}</td>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Fecha</th>
+                                <th>Negocio</th>
+                                <th>Entrada</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>${allEvents.map(e => `
+                            <tr>
+                                <td>${e.id}</td>
+                                <td><strong>${escapeHtml(e.name)}</strong></td>
+                                <td>${new Date(e.date).toLocaleDateString('es')} ${e.time ? e.time.substring(0,5) : ''}</td>
+                                <td>${escapeHtml(e.businessName || 'Independiente')}</td>
+                                <td>${e.isFree ? 'Gratis' : '$' + Number(e.price).toFixed(2)}</td>
+                                <td><span class="${e.isPublished ? 'badge-active' : 'badge-inactive'}">${e.isPublished ? 'Publicado' : 'Borrador'}</span></td>
+                                <td>
+                                    <div class="action-btns">
+                                        <button type="button" class="btn-sm btn-view" onclick="viewEventDetail(${e.id})">👁 Ver</button>
+                                        <button type="button" class="btn-sm btn-edit" onclick="editEvent(${e.id})">✏ Editar</button>
+                                        <button type="button" class="btn-sm btn-delete" onclick="deleteEvent(${e.id})">🗑 Eliminar</button>
+                                    </div>
+                                </td>
                             </tr>
                         `).join('')}</tbody>
                     </table>
-                ` : '<p>No hay eventos próximos.</p>';
-            } catch (err) { console.error(err); }
+                ` : '<p>No hay eventos registrados.</p>';
+            } catch (err) {
+                document.getElementById('evt-table').innerHTML = `<p class="error-msg">Error al cargar eventos: ${escapeHtml(err.message)}</p>`;
+            }
+        }
+
+        async function loadDiscountsForAdmin() {
+            try {
+                allDiscounts = await ApiService.request('/Discount/admin');
+                const table = document.getElementById('dsc-table');
+                table.innerHTML = allDiscounts.length ? `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Porcentaje</th>
+                                <th>Negocio</th>
+                                <th>Vigencia</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>${allDiscounts.map(d => `
+                            <tr>
+                                <td>${d.id}</td>
+                                <td><strong>${escapeHtml(d.name)}</strong></td>
+                                <td><span class="badge">${d.percentage}% OFF</span></td>
+                                <td>${escapeHtml(d.businessName)}</td>
+                                <td>${new Date(d.startDate).toLocaleDateString('es')} - ${new Date(d.endDate).toLocaleDateString('es')}</td>
+                                <td><span class="${d.isPublished ? 'badge-active' : 'badge-inactive'}">${d.isPublished ? 'Publicado' : 'Borrador'}</span></td>
+                                <td>
+                                    <div class="action-btns">
+                                        <button type="button" class="btn-sm btn-view" onclick="viewDiscountDetail(${d.id})">👁 Ver</button>
+                                        <button type="button" class="btn-sm btn-edit" onclick="editDiscount(${d.id})">✏ Editar</button>
+                                        <button type="button" class="btn-sm btn-delete" onclick="deleteDiscount(${d.id})">🗑 Eliminar</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}</tbody>
+                    </table>
+                ` : '<p>No hay descuentos registrados.</p>';
+            } catch (err) {
+                document.getElementById('dsc-table').innerHTML = `<p class="error-msg">Error al cargar descuentos: ${escapeHtml(err.message)}</p>`;
+            }
+        }
+
+        function viewBusinessDetail(id) {
+            const b = allBusinesses.find(x => x.id === id);
+            if (!b) return;
+            openModal(`🏢 ${b.name}`, `
+                <div class="detail-row"><strong>Categoría:</strong> <span class="badge">${escapeHtml(b.categoryName)}</span></div>
+                <div class="detail-row"><strong>Estado:</strong> ${b.isPublished ? 'Publicado' : 'Borrador'}</div>
+                <div class="detail-row"><strong>Descripción:</strong> ${escapeHtml(b.description)}</div>
+                <div class="detail-row"><strong>Dirección:</strong> ${escapeHtml(b.address)}</div>
+                <div class="detail-row"><strong>Teléfono:</strong> ${escapeHtml(b.phone || 'No especificado')}</div>
+                <div class="detail-row"><strong>Correo:</strong> ${escapeHtml(b.email || 'No especificado')}</div>
+                <div class="detail-row"><strong>Valoración:</strong> ${b.averageRating.toFixed(1)} ★ (${b.reviewCount} reseñas)</div>
+                <div style="margin-top:18px; display:flex; gap:10px;">
+                    <a href="negocio.html?id=${b.id}" class="btn btn-primary" style="display:inline-block;">Ir a la página del negocio</a>
+                    <button type="button" class="btn btn-edit" style="color:white;" onclick="closeModal(); editBusiness(${b.id});">✏ Editar</button>
+                </div>
+            `);
+        }
+
+        function viewEventDetail(id) {
+            const e = allEvents.find(x => x.id === id);
+            if (!e) return;
+            openModal(`🎉 ${e.name}`, `
+                <div class="detail-row"><strong>Negocio asociado:</strong> ${escapeHtml(e.businessName || 'Independiente')}</div>
+                <div class="detail-row"><strong>Estado:</strong> ${e.isPublished ? 'Publicado' : 'Borrador'}</div>
+                <div class="detail-row"><strong>Fecha:</strong> ${new Date(e.date).toLocaleDateString('es', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}</div>
+                <div class="detail-row"><strong>Hora:</strong> ${e.time ? e.time.substring(0,5) : 'No especificada'}</div>
+                <div class="detail-row"><strong>Lugar:</strong> ${escapeHtml(e.location || 'No especificado')}</div>
+                <div class="detail-row"><strong>Organizador:</strong> ${escapeHtml(e.organizer || 'No especificado')}</div>
+                <div class="detail-row"><strong>Entrada:</strong> ${e.isFree ? 'Gratuita' : '$' + Number(e.price).toFixed(2)}</div>
+                <div class="detail-row"><strong>Descripción:</strong> ${escapeHtml(e.description)}</div>
+                <div style="margin-top:18px;">
+                    <button type="button" class="btn btn-edit" style="color:white;" onclick="closeModal(); editEvent(${e.id});">✏ Editar</button>
+                </div>
+            `);
+        }
+
+        function viewDiscountDetail(id) {
+            const d = allDiscounts.find(x => x.id === id);
+            if (!d) return;
+            openModal(`💸 ${d.name} (${d.percentage}% OFF)`, `
+                <div class="detail-row"><strong>Negocio asociado:</strong> ${escapeHtml(d.businessName)}</div>
+                <div class="detail-row"><strong>Estado:</strong> ${d.isPublished ? 'Publicado' : 'Borrador'}</div>
+                <div class="detail-row"><strong>Porcentaje de descuento:</strong> ${d.percentage}%</div>
+                <div class="detail-row"><strong>Vigencia:</strong> Desde ${new Date(d.startDate).toLocaleDateString('es')} hasta ${new Date(d.endDate).toLocaleDateString('es')}</div>
+                <div class="detail-row"><strong>Condiciones:</strong> ${escapeHtml(d.conditions || 'Sin condiciones adicionales')}</div>
+                <div class="detail-row"><strong>Descripción:</strong> ${escapeHtml(d.description)}</div>
+                <div style="margin-top:18px;">
+                    <button type="button" class="btn btn-edit" style="color:white;" onclick="closeModal(); editDiscount(${d.id});">✏ Editar</button>
+                </div>
+            `);
+        }
+
+        function openModal(title, html) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-body').innerHTML = html;
+            document.getElementById('detail-modal').classList.add('open');
+        }
+
+        function closeModal() {
+            document.getElementById('detail-modal').classList.remove('open');
+        }
+
+        function editBusiness(id) {
+            const b = allBusinesses.find(x => x.id === id);
+            if (!b) return;
+
+            showPanel('businesses', document.getElementById('nav-businesses'));
+            document.getElementById('biz-id').value = b.id;
+            document.getElementById('biz-name').value = b.name || '';
+            document.getElementById('biz-category').value = b.categoryId || '';
+            document.getElementById('biz-phone').value = b.phone || '';
+            document.getElementById('biz-email').value = b.email || '';
+            document.getElementById('biz-address').value = b.address || '';
+            document.getElementById('biz-desc').value = b.description || '';
+            document.getElementById('biz-published').checked = !!b.isPublished;
+
+            document.getElementById('biz-form-title').textContent = `Editar Negocio #${b.id}: ${b.name}`;
+            document.getElementById('biz-submit-btn').textContent = 'Guardar Cambios';
+            document.getElementById('biz-cancel-btn').style.display = 'inline-block';
+            document.getElementById('biz-msg').textContent = '';
+
+            setTimeout(() => {
+                adminMap.invalidateSize();
+                if (b.latitude && b.longitude) {
+                    setMapLocation(b.latitude, b.longitude, b.address, true);
+                }
+            }, 100);
+
+            document.getElementById('panel-businesses').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function resetBusinessForm() {
+            document.getElementById('form-business').reset();
+            document.getElementById('biz-id').value = '';
+            document.getElementById('biz-lat').value = '';
+            document.getElementById('biz-lng').value = '';
+            document.getElementById('biz-published').checked = true;
+            document.getElementById('location-search').value = '';
+            document.getElementById('location-results').style.display = 'none';
+            document.getElementById('location-status').textContent = 'Haz clic en el mapa o busca un lugar arriba para marcar la ubicación del negocio.';
+            if (adminMarker) {
+                adminMap.removeLayer(adminMarker);
+                adminMarker = null;
+            }
+            adminMap.setView([DEFAULT_LAT, DEFAULT_LNG], 13);
+            document.getElementById('biz-form-title').textContent = 'Crear Nuevo Negocio';
+            document.getElementById('biz-submit-btn').textContent = 'Crear Negocio';
+            document.getElementById('biz-cancel-btn').style.display = 'none';
+        }
+
+        async function deleteBusiness(id) {
+            const b = allBusinesses.find(x => x.id === id);
+            const name = b ? b.name : `#${id}`;
+            if (!confirm(`¿Estás seguro de que deseas eliminar el negocio "${name}"?\n\nSe eliminarán sus descuentos y reseñas asociadas, mientras que sus eventos quedarán como independientes.`)) {
+                return;
+            }
+            try {
+                await ApiService.request(`/Business/${id}`, 'DELETE');
+                if (document.getElementById('biz-id').value == id) {
+                    resetBusinessForm();
+                }
+                setMsg('biz-msg', `✓ Negocio "${name}" eliminado correctamente.`, false);
+                await refreshAllAdminData();
+            } catch (err) {
+                setMsg('biz-msg', `Error al eliminar: ${err.message}`, true);
+            }
+        }
+
+        function editEvent(id) {
+            const e = allEvents.find(x => x.id === id);
+            if (!e) return;
+
+            showPanel('events', document.getElementById('nav-events'));
+            document.getElementById('evt-id').value = e.id;
+            document.getElementById('evt-name').value = e.name || '';
+            document.getElementById('evt-business').value = e.businessId || '';
+            document.getElementById('evt-date').value = e.date ? e.date.substring(0, 10) : '';
+            document.getElementById('evt-time').value = e.time ? e.time.substring(0, 5) : '';
+            document.getElementById('evt-location').value = e.location || '';
+            document.getElementById('evt-organizer').value = e.organizer || '';
+            document.getElementById('evt-free').checked = !!e.isFree;
+            document.getElementById('evt-price').value = e.price ?? 0;
+            document.getElementById('evt-desc').value = e.description || '';
+            document.getElementById('evt-published').checked = !!e.isPublished;
+            togglePrice();
+
+            document.getElementById('evt-form-title').textContent = `Editar Evento #${e.id}: ${e.name}`;
+            document.getElementById('evt-submit-btn').textContent = 'Guardar Cambios';
+            document.getElementById('evt-cancel-btn').style.display = 'inline-block';
+            document.getElementById('evt-msg').textContent = '';
+
+            document.getElementById('panel-events').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function resetEventForm() {
+            document.getElementById('form-event').reset();
+            document.getElementById('evt-id').value = '';
+            document.getElementById('evt-published').checked = true;
+            togglePrice();
+            document.getElementById('evt-form-title').textContent = 'Crear Nuevo Evento';
+            document.getElementById('evt-submit-btn').textContent = 'Crear Evento';
+            document.getElementById('evt-cancel-btn').style.display = 'none';
+        }
+
+        async function deleteEvent(id) {
+            const e = allEvents.find(x => x.id === id);
+            const name = e ? e.name : `#${id}`;
+            if (!confirm(`¿Estás seguro de que deseas eliminar el evento "${name}"?`)) {
+                return;
+            }
+            try {
+                await ApiService.request(`/Event/${id}`, 'DELETE');
+                if (document.getElementById('evt-id').value == id) {
+                    resetEventForm();
+                }
+                setMsg('evt-msg', `✓ Evento "${name}" eliminado correctamente.`, false);
+                await refreshAllAdminData();
+            } catch (err) {
+                setMsg('evt-msg', `Error al eliminar: ${err.message}`, true);
+            }
+        }
+
+        function editDiscount(id) {
+            const d = allDiscounts.find(x => x.id === id);
+            if (!d) return;
+
+            showPanel('discounts', document.getElementById('nav-discounts'));
+            document.getElementById('dsc-id').value = d.id;
+            document.getElementById('dsc-name').value = d.name || '';
+            document.getElementById('dsc-business').value = d.businessId || '';
+            document.getElementById('dsc-pct').value = d.percentage || '';
+            document.getElementById('dsc-cond').value = d.conditions || '';
+            document.getElementById('dsc-start').value = d.startDate ? d.startDate.substring(0, 10) : '';
+            document.getElementById('dsc-end').value = d.endDate ? d.endDate.substring(0, 10) : '';
+            document.getElementById('dsc-desc').value = d.description || '';
+            document.getElementById('dsc-published').checked = !!d.isPublished;
+
+            document.getElementById('dsc-form-title').textContent = `Editar Descuento #${d.id}: ${d.name}`;
+            document.getElementById('dsc-submit-btn').textContent = 'Guardar Cambios';
+            document.getElementById('dsc-cancel-btn').style.display = 'inline-block';
+            document.getElementById('dsc-msg').textContent = '';
+
+            document.getElementById('panel-discounts').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function resetDiscountForm() {
+            document.getElementById('form-discount').reset();
+            document.getElementById('dsc-id').value = '';
+            document.getElementById('dsc-published').checked = true;
+            document.getElementById('dsc-form-title').textContent = 'Crear Nuevo Descuento';
+            document.getElementById('dsc-submit-btn').textContent = 'Crear Descuento';
+            document.getElementById('dsc-cancel-btn').style.display = 'none';
+        }
+
+        async function deleteDiscount(id) {
+            const d = allDiscounts.find(x => x.id === id);
+            const name = d ? d.name : `#${id}`;
+            if (!confirm(`¿Estás seguro de que deseas eliminar el descuento "${name}"?`)) {
+                return;
+            }
+            try {
+                await ApiService.request(`/Discount/${id}`, 'DELETE');
+                if (document.getElementById('dsc-id').value == id) {
+                    resetDiscountForm();
+                }
+                setMsg('dsc-msg', `✓ Descuento "${name}" eliminado correctamente.`, false);
+                await refreshAllAdminData();
+            } catch (err) {
+                setMsg('dsc-msg', `Error al eliminar: ${err.message}`, true);
+            }
         }
 
         function togglePrice() {
@@ -258,29 +896,58 @@
         function setMsg(id, text, isError) {
             const el = document.getElementById(id);
             el.textContent = text;
-            el.style.color = isError ? 'red' : 'green';
+            el.style.color = isError ? '#e74c3c' : '#27ae60';
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
         }
 
         document.getElementById('form-business').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const editId = document.getElementById('biz-id').value;
+            const latVal = parseFloat(document.getElementById('biz-lat').value);
+            const lngVal = parseFloat(document.getElementById('biz-lng').value);
+
+            if (isNaN(latVal) || isNaN(lngVal) || (latVal === 0 && lngVal === 0)) {
+                setMsg('biz-msg', 'Por favor selecciona la ubicación del negocio en el mapa (buscando una dirección o haciendo clic en el mapa).', true);
+                return;
+            }
+
             const dto = {
-                name: document.getElementById('biz-name').value,
-                description: document.getElementById('biz-desc').value,
-                address: document.getElementById('biz-address').value,
-                phone: document.getElementById('biz-phone').value,
-                email: document.getElementById('biz-email').value,
+                name: document.getElementById('biz-name').value.trim(),
+                description: document.getElementById('biz-desc').value.trim(),
+                address: document.getElementById('biz-address').value.trim(),
+                phone: document.getElementById('biz-phone').value.trim(),
+                email: document.getElementById('biz-email').value.trim(),
                 categoryId: parseInt(document.getElementById('biz-category').value),
-                latitude: parseFloat(document.getElementById('biz-lat').value) || 0,
-                longitude: parseFloat(document.getElementById('biz-lng').value) || 0,
+                latitude: latVal,
+                longitude: lngVal,
                 isPublished: document.getElementById('biz-published').checked
             };
+
+            if (!dto.name || !dto.description || !dto.address || !dto.categoryId) {
+                setMsg('biz-msg', 'Por favor completa todos los campos obligatorios (*).', true);
+                return;
+            }
+
             try {
                 setMsg('biz-msg', 'Guardando...', false);
-                await ApiService.request('/Business', 'POST', dto);
-                setMsg('biz-msg', '✓ Negocio creado exitosamente.', false);
-                document.getElementById('form-business').reset();
-                await loadStats();
-                await loadBusinessesForAdmin();
+                if (editId) {
+                    await ApiService.request(`/Business/${editId}`, 'PUT', dto);
+                    resetBusinessForm();
+                    setMsg('biz-msg', '✓ Negocio actualizado exitosamente.', false);
+                } else {
+                    await ApiService.request('/Business', 'POST', dto);
+                    resetBusinessForm();
+                    setMsg('biz-msg', '✓ Negocio creado exitosamente.', false);
+                }
+                await refreshAllAdminData();
             } catch (err) {
                 setMsg('biz-msg', `Error: ${err.message}`, true);
             }
@@ -288,27 +955,46 @@
 
         document.getElementById('form-event').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const editId = document.getElementById('evt-id').value;
             const isFree = document.getElementById('evt-free').checked;
+            const price = isFree ? 0 : (parseFloat(document.getElementById('evt-price').value) || 0);
+
+            if (!isFree && price < 0) {
+                setMsg('evt-msg', 'El precio del evento no puede ser negativo.', true);
+                return;
+            }
+
             const dto = {
-                name: document.getElementById('evt-name').value,
-                description: document.getElementById('evt-desc').value,
+                name: document.getElementById('evt-name').value.trim(),
+                description: document.getElementById('evt-desc').value.trim(),
                 date: document.getElementById('evt-date').value,
                 time: document.getElementById('evt-time').value || '00:00:00',
-                location: document.getElementById('evt-location').value,
-                organizer: document.getElementById('evt-organizer').value,
+                location: document.getElementById('evt-location').value.trim(),
+                organizer: document.getElementById('evt-organizer').value.trim(),
                 isFree,
-                price: isFree ? 0 : parseFloat(document.getElementById('evt-price').value) || 0,
+                price,
                 businessId: document.getElementById('evt-business').value ? parseInt(document.getElementById('evt-business').value) : null,
                 isPublished: document.getElementById('evt-published').checked,
                 imageUrl: ''
             };
+
+            if (!dto.name || !dto.description || !dto.date) {
+                setMsg('evt-msg', 'Por favor completa todos los campos obligatorios (*).', true);
+                return;
+            }
+
             try {
                 setMsg('evt-msg', 'Guardando...', false);
-                await ApiService.request('/Event', 'POST', dto);
-                setMsg('evt-msg', '✓ Evento creado exitosamente.', false);
-                document.getElementById('form-event').reset();
-                await loadStats();
-                await loadEventsForAdmin();
+                if (editId) {
+                    await ApiService.request(`/Event/${editId}`, 'PUT', dto);
+                    resetEventForm();
+                    setMsg('evt-msg', '✓ Evento actualizado exitosamente.', false);
+                } else {
+                    await ApiService.request('/Event', 'POST', dto);
+                    resetEventForm();
+                    setMsg('evt-msg', '✓ Evento creado exitosamente.', false);
+                }
+                await refreshAllAdminData();
             } catch (err) {
                 setMsg('evt-msg', `Error: ${err.message}`, true);
             }
@@ -316,23 +1002,50 @@
 
         document.getElementById('form-discount').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const editId = document.getElementById('dsc-id').value;
+            const startDate = document.getElementById('dsc-start').value;
+            const endDate = document.getElementById('dsc-end').value;
+            const pct = parseInt(document.getElementById('dsc-pct').value);
+
+            if (isNaN(pct) || pct < 1 || pct > 100) {
+                setMsg('dsc-msg', 'El porcentaje debe estar entre 1 y 100.', true);
+                return;
+            }
+
+            if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+                setMsg('dsc-msg', 'La fecha de fin no puede ser anterior a la fecha de inicio.', true);
+                return;
+            }
+
             const dto = {
-                name: document.getElementById('dsc-name').value,
-                description: document.getElementById('dsc-desc').value,
-                percentage: parseInt(document.getElementById('dsc-pct').value),
-                conditions: document.getElementById('dsc-cond').value,
-                startDate: document.getElementById('dsc-start').value,
-                endDate: document.getElementById('dsc-end').value,
+                name: document.getElementById('dsc-name').value.trim(),
+                description: document.getElementById('dsc-desc').value.trim(),
+                percentage: pct,
+                conditions: document.getElementById('dsc-cond').value.trim(),
+                startDate,
+                endDate,
                 businessId: parseInt(document.getElementById('dsc-business').value),
                 isPublished: document.getElementById('dsc-published').checked,
                 imageUrl: ''
             };
+
+            if (!dto.name || !dto.description || !dto.startDate || !dto.endDate || !dto.businessId) {
+                setMsg('dsc-msg', 'Por favor completa todos los campos obligatorios (*).', true);
+                return;
+            }
+
             try {
                 setMsg('dsc-msg', 'Guardando...', false);
-                await ApiService.request('/Discount', 'POST', dto);
-                setMsg('dsc-msg', '✓ Descuento creado exitosamente.', false);
-                document.getElementById('form-discount').reset();
-                await loadStats();
+                if (editId) {
+                    await ApiService.request(`/Discount/${editId}`, 'PUT', dto);
+                    resetDiscountForm();
+                    setMsg('dsc-msg', '✓ Descuento actualizado exitosamente.', false);
+                } else {
+                    await ApiService.request('/Discount', 'POST', dto);
+                    resetDiscountForm();
+                    setMsg('dsc-msg', '✓ Descuento creado exitosamente.', false);
+                }
+                await refreshAllAdminData();
             } catch (err) {
                 setMsg('dsc-msg', `Error: ${err.message}`, true);
             }
